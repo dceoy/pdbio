@@ -1,0 +1,18 @@
+---
+box:
+  id: dceoy/jupyter:latest
+  entrypoint: /bin/bash -c
+test:
+  steps:
+    - script:
+        name: Install pdvcf
+        code: |
+          pip install -U .
+    - script:
+        name: Validate the codes using flake8
+        code: |
+          find . -name '*.py' | xargs flake8
+  after-steps:
+    - slack-notifier:
+        url: $SLACK_URL
+        channel: $SLACK_CHANNEL
