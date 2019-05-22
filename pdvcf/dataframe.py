@@ -11,20 +11,15 @@ import os
 import pandas as pd
 
 
-def fetch_abspath(path):
-    return os.path.abspath(os.path.expanduser(os.path.expandvars(path)))
-
-
 class BaseBioDataFrame(object, metaclass=ABCMeta):
     def __init__(self, path, supported_exts=[]):
-        abspath = fetch_abspath(path=path)
-        if os.path.isfile(abspath):
-            self.path = abspath
+        if os.path.isfile(path):
+            self.path = path
         else:
-            raise FileNotFoundError('file not found: {}'.format(abspath))
-        hit_exts = [x for x in supported_exts if abspath.endswith(x)]
+            raise FileNotFoundError('file not found: {}'.format(path))
+        hit_exts = [x for x in supported_exts if path.endswith(x)]
         if supported_exts and not hit_exts:
-            raise ValueError('invalid file extension: {}'.format(abspath))
+            raise ValueError('invalid file extension: {}'.format(path))
         self.df = pd.DataFrame()
 
     @abstractmethod
@@ -96,9 +91,10 @@ class VcfDataFrame(BaseBioDataFrame):
                 raise ValueError('invalid VCF columns')
         else:
             self.df = self.df.append(
-                pd.read_table(
+                pd.read_csv(
                     io.StringIO(string), header=None,
                     names=self.__detected_cols,
-                    dtype=self.__detected_col_dtypes
+                    dtype=self.__detected_col_dtypes,
+                    sep='\t'
                 )
             )

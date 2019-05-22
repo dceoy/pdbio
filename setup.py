@@ -14,6 +14,9 @@ setup(
     url='https://github.com/dceoy/pdvcf',
     include_package_data=True,
     install_requires=['pandas'],
+    entry_points={
+        'console_scripts': ['pdvcf=pdvcf.cli:main'],
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Plugins',

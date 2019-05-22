@@ -12,6 +12,10 @@ test:
         name: Validate the codes using flake8
         code: |
           find . -name '*.py' | xargs flake8
+    - script:
+        name: Test a command
+        code: |
+          pdvcf --version
   after-steps:
     - slack-notifier:
         url: $SLACK_URL
