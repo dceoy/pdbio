@@ -3,22 +3,23 @@
 # Pandas-based Data Handler for VCF Files
 # https://github.com/dceoy/pdvcf
 
-from abc import ABCMeta, abstractmethod
 import bz2
 import gzip
 import io
 import os
+from abc import ABCMeta, abstractmethod
+
 import pandas as pd
 
 
 class BaseBioDataFrame(object, metaclass=ABCMeta):
-    def __init__(self, path, supported_exts=[]):
+    def __init__(self, path, supported_exts=None):
         if os.path.isfile(path):
             self.path = path
         else:
             raise FileNotFoundError('file not found: {}'.format(path))
-        hit_exts = [x for x in supported_exts if path.endswith(x)]
-        if supported_exts and not hit_exts:
+        if (isinstance(supported_exts, (list, tuple))
+                and not [x for x in supported_exts if path.endswith(x)]):
             raise ValueError('invalid file extension: {}'.format(path))
         self.df = pd.DataFrame()
 

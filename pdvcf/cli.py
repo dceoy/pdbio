@@ -26,9 +26,11 @@ Arguments:
 
 import logging
 import os
+
 from docopt import docopt
-from .util import set_log_config
+
 from . import __version__
+from .util import set_log_config
 
 
 def main():

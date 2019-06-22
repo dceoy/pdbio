@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
-from pdvcf import __version__
+from setuptools import find_packages, setup
 
+from pdvcf import __version__
 
 setup(
     name='pdvcf',

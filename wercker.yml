@@ -11,7 +11,7 @@ test:
     - script:
         name: Validate the codes using flake8
         code: |
-          find . -name '*.py' | xargs flake8
+          find . -name '*.py' | xargs flake8 --no-isort-config
     - script:
         name: Test a command
         code: |
