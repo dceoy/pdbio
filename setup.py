@@ -13,7 +13,7 @@ setup(
     author_email='dnarsil+github@gmail.com',
     url='https://github.com/dceoy/pdvcf',
     include_package_data=True,
-    install_requires=['pandas'],
+    install_requires=['docopt', 'pandas'],
     entry_points={
         'console_scripts': ['pdvcf=pdvcf.cli:main'],
     },
