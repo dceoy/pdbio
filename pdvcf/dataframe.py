@@ -21,6 +21,7 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         if (isinstance(supported_exts, (list, tuple))
                 and not [x for x in supported_exts if path.endswith(x)]):
             raise ValueError('invalid file extension: {}'.format(path))
+        self.header = list()
         self.df = pd.DataFrame()
 
     @abstractmethod
@@ -52,10 +53,10 @@ class VcfDataFrame(BaseBioDataFrame):
             '#CHROM': str, 'POS': int, 'ID': str, 'REF': str, 'ALT': str,
             'QUAL': str, 'FILTER': str, 'INFO': str
         }
-        self.__detected_cols = []
-        self.__detected_col_dtypes = {}
-        self.header = []
-        self.samples = []
+        self.__detected_cols = list()
+        self.__detected_col_dtypes = dict()
+        self.header = list()
+        self.samples = list()
 
     def load(self):
         if self.path.endswith('.gz'):
@@ -82,7 +83,7 @@ class VcfDataFrame(BaseBioDataFrame):
                     [
                         'SAMPLE{}'.format(i)
                         for i in range(n_detected_cols - n_fixed_cols)
-                    ] if n_detected_cols > n_fixed_cols else []
+                    ] if n_detected_cols > n_fixed_cols else list()
                 )
                 self.__detected_col_dtypes = {
                     k: (self.__fixed_col_dtypes.get(k) or str)
