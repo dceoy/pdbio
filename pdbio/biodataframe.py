@@ -10,6 +10,7 @@ import io
 import logging
 import os
 from abc import ABCMeta, abstractmethod
+from collections import OrderedDict
 from itertools import product
 
 import pandas as pd
@@ -41,13 +42,6 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         self.load()
         return self.df
 
-    def write_df(self, path, mode='w', sep='\t', index=False, **kwargs):
-        if self.header:
-            with open(path, mode=mode) as f:
-                for h in self.header:
-                    f.write(h + os.linesep)
-        self.df.to_csv(path, mode=('a' if self.header else 'w'), **kwargs)
-
     @staticmethod
     def open_readable_file(path):
         if path.endswith('.gz'):
@@ -56,6 +50,12 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
             return bz2.open(path, 'rt')
         else:
             return open(path, 'r')
+
+    def write_header(self, path):
+        if self.header:
+            with open(path, mode='w') as f:
+                for h in self.header:
+                    f.write(h + os.linesep)
 
 
 class VcfDataFrame(BaseBioDataFrame):
@@ -80,7 +80,7 @@ class VcfDataFrame(BaseBioDataFrame):
         }
         self.__detected_cols = list()
         self.__detected_col_dtypes = dict()
-        self.samples = list()
+        self.sample_dict = OrderedDict()
         if return_df:
             self.load_and_output_df()
         else:
@@ -99,7 +99,10 @@ class VcfDataFrame(BaseBioDataFrame):
         elif string.startswith('#CHROM'):
             items = string.strip().split('\t')
             if items[:len(self.__fixed_cols)] == self.__fixed_cols:
-                self.samples = [s for s in items if s not in self.__fixed_cols]
+                samples = [s for s in items if s not in self.__fixed_cols]
+                self.sample_dict = OrderedDict([
+                    ('SAMPLE{}'.format(i), n) for i, n in enumerate(samples)
+                ])
                 n_fixed_cols = len(self.__fixed_cols)
                 n_detected_cols = len(items)
                 self.__detected_cols = self.__fixed_cols + (
@@ -125,7 +128,10 @@ class VcfDataFrame(BaseBioDataFrame):
 
     def write_vcf(self, path):
         self.__logger.info('Write a VCF file: {}'.format(path))
-        self.write_df(path=path)
+        self.write_header(path=path)
+        self.df.pipe(lambda d: d.rename(self.sample_dict)).to_csv(
+            path, mode=('a' if self.header else 'w'), sep='\t', index=False
+        )
 
 
 class BedDataFrame(BaseBioDataFrame):
@@ -187,4 +193,8 @@ class BedDataFrame(BaseBioDataFrame):
 
     def write_bed(self, path):
         self.__logger.info('Write a BED file: {}'.format(path))
-        self.write_df(path=path)
+        self.write_header(path=path)
+        self.df.to_csv(
+            path, header=False, mode=('a' if self.header else 'w'), sep='\t',
+            index=False
+        )

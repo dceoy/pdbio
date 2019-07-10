@@ -24,8 +24,8 @@ from pdbio.biodataframe import VcfDataFrame
 vcf_path = '/path/to/input/vcf'
 vcfdf = VcfDataFrame(path=vcf_path)
 
-pprint(vcfdf.samples)
 pprint(vcfdf.header)
+pprint(vcfdf.sample_dict)
 print(vcfdf.df)
 ```
 
