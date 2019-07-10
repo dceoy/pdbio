@@ -93,6 +93,21 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         else:
             raise RuntimeError('command not found:: {}'.format(cmd))
 
+    def sort_df_by_chrom(self, chrom_col, add_cols=None):
+        self.df = self.df.assign(
+            chrom_int=lambda d: d[chrom_col].apply(self._chrom2int)
+        ).sort_values(
+            ['chrom_int', *(add_cols if add_cols else list())]
+        ).drop(columns='chrom_int')
+
+    @staticmethod
+    def _chrom2int(chrom):
+        id = chrom[3:] if chrom.lower().startswith('chr') else chrom
+        return (
+            int(id) if id.isdigit() else
+            (({'X': 0, 'Y': 1, 'M': 2, 'MT': 2}.get(id.upper()) or 3) + 1000)
+        )
+
 
 class VcfDataFrame(BaseBioDataFrame):
     """VCF DataFrame handler."""
@@ -109,7 +124,7 @@ class VcfDataFrame(BaseBioDataFrame):
         )
         self.__logger = logging.getLogger(__name__)
         self.__bcftools = bcftools
-        self.__n_th = n_thread
+        self.__n_thread = n_thread
         self.__fixed_cols = [
             '#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO',
             'FORMAT'
@@ -174,6 +189,9 @@ class VcfDataFrame(BaseBioDataFrame):
                     dtype=self.__detected_col_dtypes
                 )
             )
+
+    def sort_df(self):
+        self.sort_df_by_chrom(chrom_col='#CHROM', add_cols=self.__fixed_cols)
 
     def write_vcf(self, path):
         self.__logger.info('Write a VCF file: {}'.format(path))
@@ -240,6 +258,9 @@ class BedDataFrame(BaseBioDataFrame):
                 )
             )
 
+    def sort_df(self):
+        self.sort_df_by_chrom(chrom_col='chrom', add_cols=self.__fixed_cols)
+
     def write_bed(self, path):
         self.__logger.info('Write a BED file: {}'.format(path))
         self.write_header(path=path)
@@ -250,6 +271,8 @@ class BedDataFrame(BaseBioDataFrame):
 
 
 class SamDataFrame(BaseBioDataFrame):
+    """SAM DataFrame handler."""
+
     def __init__(self, path, return_df=False, samtools=None, n_thread=None):
         super().__init__(
             path=path,
@@ -262,7 +285,7 @@ class SamDataFrame(BaseBioDataFrame):
         )
         self.__logger = logging.getLogger(__name__)
         self.__samtools = samtools
-        self.__n_th = n_thread
+        self.__n_thread = n_thread
         self.__fixed_cols = [
             'QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT',
             'TLEN', 'SEQ', 'QUAL'
@@ -319,6 +342,9 @@ class SamDataFrame(BaseBioDataFrame):
                     dtype=self.__detected_col_dtypes
                 )
             )
+
+    def sort_df(self):
+        self.sort_df_by_chrom(chrom_col='RNAME', add_cols=self.__fixed_cols)
 
     def write_sam(self, path):
         self.__logger.info('Write a SAM file: {}'.format(path))
