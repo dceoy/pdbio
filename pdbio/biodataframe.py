@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Pandas-based Data Handler for VCF and BED Files.
+Pandas-based Data Handler for VCF, BED, and SAM Files.
 https://github.com/dceoy/pdbio
 """
 
@@ -9,9 +9,12 @@ import gzip
 import io
 import logging
 import os
+import re
+import subprocess
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from itertools import product
+from multiprocessing import cpu_count
 
 import pandas as pd
 
@@ -31,6 +34,7 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
             raise ValueError('invalid file extension: {}'.format(path))
         else:
             pass
+        self.__logger = logging.getLogger(__name__)
         self.header = list()
         self.df = pd.DataFrame()
 
@@ -57,19 +61,55 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
                 for h in self.header:
                     f.write(h + os.linesep)
 
+    def run_and_parse_subprocess(self, args, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, **kwargs):
+        with subprocess.Popen(args=args, stdout=stdout, stderr=stderr,
+                              **kwargs) as p:
+            for line in p.stdout:
+                yield line.decode('utf-8')
+            outs, errs = p.communicate()
+            if p.returncode == 0:
+                pass
+            else:
+                self.__logger.error(
+                    'STDERR from subprocess `{0}`:{1}{2}'.format(
+                        p.args, os.linesep, errs.decode('utf-8')
+                    )
+                )
+                raise subprocess.CalledProcessError(
+                    returncode=p.returncode, cmd=p.args, output=outs,
+                    stderr=errs
+                )
+
+    def fetch_executable(self, cmd):
+        executables = [
+            x for x in
+            [os.path.join(p, cmd) for p in str.split(os.environ['PATH'], ':')]
+            if os.access(x, os.X_OK)
+        ]
+        if executables:
+            self.__logger.debug('path to {0}: {1}'.format(cmd, executables[0]))
+            return executables[0]
+        else:
+            raise RuntimeError('command not found:: {}'.format(cmd))
+
 
 class VcfDataFrame(BaseBioDataFrame):
     """VCF DataFrame handler."""
 
-    def __init__(self, path, return_df=False):
+    def __init__(self, path, return_df=False, bcftools=None, n_thread=1):
         super().__init__(
             path=path,
             supported_exts=[
-                (e + c) for e, c in
-                product(['.vcf', '.txt', '.tsv'], ['', '.gz', '.bz2'])
+                *[
+                    (e + c) for e, c in
+                    product(['.vcf', '.txt', '.tsv'], ['', '.gz', '.bz2'])
+                ], '.bcf'
             ]
         )
         self.__logger = logging.getLogger(__name__)
+        self.__bcftools = bcftools
+        self.__n_th = n_thread
         self.__fixed_cols = [
             '#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO',
             'FORMAT'
@@ -88,9 +128,17 @@ class VcfDataFrame(BaseBioDataFrame):
 
     def load(self):
         self.__logger.info('Load a VCF file: {}'.format(self.path))
-        with self.open_readable_file(path=self.path) as f:
-            for s in f:
+        if self.path.endswith('.bcf'):
+            args = [
+                (self.__bcftools or self.fetch_executable('bcftools')), 'view',
+                '--threads', str(self.__n_thread or cpu_count()), self.path
+            ]
+            for s in self.run_and_parse_subprocess(args=args):
                 self._load_vcf_line(string=s)
+        else:
+            with self.open_readable_file(path=self.path) as f:
+                for s in f:
+                    self._load_vcf_line(string=s)
         self.df = self.df.reset_index(drop=True)
 
     def _load_vcf_line(self, string):
@@ -105,12 +153,13 @@ class VcfDataFrame(BaseBioDataFrame):
                 ])
                 n_fixed_cols = len(self.__fixed_cols)
                 n_detected_cols = len(items)
-                self.__detected_cols = self.__fixed_cols + (
-                    [
+                self.__detected_cols = [
+                    *self.__fixed_cols,
+                    *[
                         'SAMPLE{}'.format(i)
-                        for i in range(n_detected_cols - n_fixed_cols)
-                    ] if n_detected_cols > n_fixed_cols else list()
-                )
+                        for i in range(max(n_detected_cols - n_fixed_cols, 0))
+                    ]
+                ]
                 self.__detected_col_dtypes = {
                     k: (self.__fixed_col_dtypes.get(k) or str)
                     for k in self.__detected_cols
@@ -193,6 +242,86 @@ class BedDataFrame(BaseBioDataFrame):
 
     def write_bed(self, path):
         self.__logger.info('Write a BED file: {}'.format(path))
+        self.write_header(path=path)
+        self.df.to_csv(
+            path, header=False, mode=('a' if self.header else 'w'), sep='\t',
+            index=False
+        )
+
+
+class SamDataFrame(BaseBioDataFrame):
+    def __init__(self, path, return_df=False, samtools=None, n_thread=None):
+        super().__init__(
+            path=path,
+            supported_exts=[
+                *[
+                    (e + c) for e, c in
+                    product(['.sam', '.txt', '.tsv'], ['', '.gz', '.bz2'])
+                ], '.bam', '.cram'
+            ]
+        )
+        self.__logger = logging.getLogger(__name__)
+        self.__samtools = samtools
+        self.__n_th = n_thread
+        self.__fixed_cols = [
+            'QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT',
+            'TLEN', 'SEQ', 'QUAL'
+        ]
+        self.__fixed_col_dtypes = {
+            'QNAME': str, 'FLAG': int, 'RNAME': str, 'POS': int, 'MAPQ': int,
+            'CIGAR': str, 'RNEXT': str, 'PNEXT': int, 'TLEN': int, 'SEQ': str,
+            'QUAL': str
+        }
+        self.__detected_cols = list()
+        self.__detected_col_dtypes = dict()
+        if return_df:
+            self.load_and_output_df()
+        else:
+            self.load()
+
+    def load(self):
+        self.__logger.info('Load a SAM file: {}'.format(self.path))
+        if self.path.endswith(('.bam', '.cram')):
+            args = [
+                (self.__samtools or self.fetch_executable('samtools')), 'view',
+                '-@', str(self.__n_thread or cpu_count()), '-h', self.path
+            ]
+            for s in self.run_and_parse_subprocess(args=args):
+                self._load_sam_line(string=s)
+        else:
+            with self.open_readable_file(path=self.path) as f:
+                for s in f:
+                    self._load_sam_line(string=s)
+        self.df = self.df.reset_index(drop=True)
+
+    def _load_sam_line(self, string):
+        if re.match(r'@[A-Z]{1}', string):
+            self.header.append(string.strip())
+        else:
+            if not self.__detected_cols:
+                n_fixed_cols = len(self.__fixed_cols)
+                n_detected_cols = string.count('\t') + 1
+                self.__detected_cols = [
+                    *self.__fixed_cols,
+                    *[
+                        'OPT{}'.format(i)
+                        for i in range(max(n_detected_cols - n_fixed_cols, 0))
+                    ]
+                ]
+                self.__detected_col_dtypes = {
+                    k: (self.__fixed_col_dtypes.get(k) or str)
+                    for k in self.__detected_cols
+                }
+            self.df = self.df.append(
+                pd.read_csv(
+                    io.StringIO(string), sep='\t', header=None,
+                    names=self.__detected_cols,
+                    dtype=self.__detected_col_dtypes
+                )
+            )
+
+    def write_sam(self, path):
+        self.__logger.info('Write a SAM file: {}'.format(path))
         self.write_header(path=path)
         self.df.to_csv(
             path, header=False, mode=('a' if self.header else 'w'), sep='\t',

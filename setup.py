@@ -7,7 +7,7 @@ from pdbio import __version__
 setup(
     name='pdbio',
     version=__version__,
-    description='Pandas-based Data Handler for VCF and BED Files',
+    description='Pandas-based Data Handler for VCF, BED, and SAM Files',
     packages=find_packages(),
     author='Daichi Narushima',
     author_email='dnarsil+github@gmail.com',
@@ -31,6 +31,6 @@ setup(
     long_description="""\
 # pdbio
 
-Pandas-based Data Handler for VCF and BED Files
+Pandas-based Data Handler for VCF, BED, and SAM Files
 """
 )
