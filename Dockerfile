@@ -1,6 +1,6 @@
 FROM dceoy/jupyter:latest
 
-ADD . /tmp/pdvcf
+ADD . /tmp/pdbio
 
 RUN set -e \
       && apt-get -y update \
@@ -10,7 +10,7 @@ RUN set -e \
       && rm -rf /var/lib/apt/lists/*
 
 RUN set -e \
-      && pip install -U --no-cache-dir pip /tmp/pdvcf \
-      && rm -rf /tmp/pdvcf
+      && pip install -U --no-cache-dir pip /tmp/pdbio \
+      && rm -rf /tmp/pdbio
 
 ENTRYPOINT ["jupyter"]

@@ -5,7 +5,7 @@ box:
 test:
   steps:
     - script:
-        name: Install pdvcf
+        name: Install pdbio
         code: |
           pip install -U .
     - script:
@@ -15,7 +15,7 @@ test:
     - script:
         name: Test a command
         code: |
-          pdvcf --version
+          pdbio --version
   after-steps:
     - slack-notifier:
         url: $SLACK_URL

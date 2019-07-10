@@ -2,12 +2,12 @@
 version: '3'
 
 services:
-  pdvcf:
-    container_name: pdvcf
+  pdbio:
+    container_name: pdbio
     build:
       context: .
       dockerfile: Dockerfile
-    image: dceoy/pdvcf:latest
+    image: dceoy/pdbio:latest
     user: ${UID}:${GID}
     userns_mode: host
     ports:
