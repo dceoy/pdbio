@@ -68,7 +68,7 @@ def _convert_file_to_csv(src_path, csv_dst_path, header_txt_dst_path=None,
                          sep=',', file_format='vcf'):
     if file_format == 'vcf':
         biodf = VcfDataFrame(path=src_path)
-        df = biodf.df.pipe(lambda d: d.rename(biodf.sample_dict))
+        df = biodf.df.rename(biodf.sample_dict)
     elif file_format == 'bed':
         biodf = BedDataFrame(path=src_path)
         df = biodf.df

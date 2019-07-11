@@ -196,7 +196,7 @@ class VcfDataFrame(BaseBioDataFrame):
     def write_vcf(self, path):
         self.__logger.info('Write a VCF file: {}'.format(path))
         self.write_header(path=path)
-        self.df.pipe(lambda d: d.rename(self.sample_dict)).to_csv(
+        self.df.rename(self.sample_dict).to_csv(
             path, mode=('a' if self.header else 'w'), sep='\t', index=False
         )
 
