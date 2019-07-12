@@ -36,7 +36,9 @@ import os
 from docopt import docopt
 
 from . import __version__
-from .biodataframe import BedDataFrame, SamDataFrame, VcfDataFrame
+from .beddataframe import BedDataFrame
+from .samdataframe import SamDataFrame
+from .vcfdataframe import VcfDataFrame
 
 
 def main():
