@@ -21,7 +21,7 @@ Example of API call
 from pprint import pprint
 from pdbio.biodataframe import VcfDataFrame
 
-vcf_path = '/path/to/input/vcf'
+vcf_path = 'test/example.vcf'
 vcfdf = VcfDataFrame(path=vcf_path)
 
 pprint(vcfdf.header)
@@ -32,40 +32,12 @@ print(vcfdf.df)
 Command-line interface
 ----------------------
 
+Example of commands
+
 ```sh
-$ pdbio --help
-Pandas-based Data Handler for VCF, BED, and SAM Files.
-
-Usage:
-    pdbio vcf2csv [--debug|--info] [--sort] [--tsv] [--header=<path>]
-                  [--dst=<path>] <src>
-    pdbio bed2csv [--debug|--info] [--sort] [--tsv] [--header=<path>]
-                  [--dst=<path>] <src>
-    pdbio sam2csv [--debug|--info] [--sort] [--tsv] [--header=<path>]
-                  [--dst=<path>] <src>
-    pdbio vcfsort [--debug|--info] [--dst=<path>] <src>
-    pdbio bedsort [--debug|--info] [--dst=<path>] <src>
-    pdbio samsort [--debug|--info] [--dst=<path>] <src>
-    pdbio --version
-    pdbio -h|--help
-
-Options:
-    --debug, --info     Execute a command with debug|info messages
-    --sort              Sort a dataframe
-    --tsv               Use tab instead of comma for a field delimiter
-    --header=<path>     Write a header into a text file
-    --dst=<path>        Write results into a text file
-    --version           Print version and exit
-    -h, --help          Print help and exit
-
-Commands:
-    vcf2csv             Convert a VCF/BCF file to a CSV file
-    bed2csv             Convert a BED file to a CSV file
-    sam2csv             Convert a SAM/BAM/CRAM file to a CSV file
-    vcfsort             Sort a VCF/BCF file
-    bedsort             Sort a BED file
-    samsort             Sort a SAM/BAM/CRAM file
-
-Arguments:
-    <src>               Path to an input file
+$ pdbio vcf2csv --sort --tsv test/example.vcf
+$ pdbio vcf2csv --expand-info --expand-samples test/example.vcf
+$ pdbio vcfsort test/example.vcf
 ```
+
+Run `pdbio --help` for more information.

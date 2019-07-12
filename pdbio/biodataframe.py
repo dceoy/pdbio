@@ -20,13 +20,16 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
     """Base DataFrame handler for Table Files."""
 
     def __init__(self, path=None, format_name='TSV', delimiter='\t',
-                 column_header=True, chrom_column=None, txt_file_exts=None,
-                 bin_file_exts=None):
+                 column_header=True, chrom_column=None, pos_columns=None,
+                 txt_file_exts=None, bin_file_exts=None):
+        for a in [pos_columns, txt_file_exts, bin_file_exts]:
+            assert type(a) is not str
         self.__logger = logging.getLogger(__name__)
         self.__format_name = format_name
         self.__column_header = column_header
         self.__delimiter = delimiter
         self.__chrom_column = chrom_column
+        self.__pos_columns = pos_columns
         self.__file_exts = [
             *(
                 [e + c for e, c in product(txt_file_exts, ['', '.gz', '.bz2'])]
@@ -46,6 +49,8 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
             'Load {0} file: {1}'.format(self.__format_name, self.path)
         )
         self.load()
+        self.__logger.debug('self.df shape: {}'.format(self.df.shape))
+        self.__logger.debug('self.df:{0}{1}'.format(os.linesep, self.df))
         return self
 
     def _update_path(self, path):
@@ -111,23 +116,23 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
     def sorted_df(self, **kwargs):
         return self._sort_df(**kwargs)
 
-    def _sort_df(self, df=None, by_chrome=True, **kwargs):
+    def _sort_df(self, df=None, by_chrom=True, **kwargs):
         self.__logger.info('Sort the dataframe.')
-        return (df or self.df).pipe(
+        return (self.df if df is None else df).pipe(
             lambda d: (
-                self._sort_by_chrom(df=d, **kwargs)
-                if self.__chrom_column and by_chrome else
+                self._sort_by_chrom_and_pos(df=d, **kwargs)
+                if self.__chrom_column and by_chrom else
                 d.sort_values(by=d.columns, **kwargs)
             )
         )
 
-    def _sort_by_chrom(self, df, **kwargs):
-        ci = self.__chrom_column + '_int'
-        return df.assign(
-            **{ci: lambda d: d[self.__chrom_column].apply(self._chrom2int)}
-        ).sort_values(
-            by=[ci, *[c for c in df.columns if c != ci]], **kwargs
-        ).drop(columns=ci)
+    def _sort_by_chrom_and_pos(self, df, **kwargs):
+        ci = self.__chrom_column + '_sort_index'
+        pis = self.__pos_columns or list()
+        sort_keys = [ci, *pis, *[c for c in df.columns if c not in pis]]
+        return df.assign(**{
+            ci: (lambda d: d[self.__chrom_column].apply(self._chrom2int))
+        }).sort_values(by=sort_keys, **kwargs).drop(columns=ci)
 
     @staticmethod
     def _chrom2int(chrom):

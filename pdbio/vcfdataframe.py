@@ -6,6 +6,7 @@ https://github.com/dceoy/pdbio
 
 import io
 import logging
+import re
 from itertools import chain
 from multiprocessing import cpu_count
 
@@ -34,8 +35,8 @@ class VcfDataFrame(BaseBioDataFrame):
         self.samples = list()
         super().__init__(
             path=path, format_name='VCF', delimiter='\t', column_header=True,
-            chrom_column='#CHROM', txt_file_exts=['.vcf', '.txt', '.tsv'],
-            bin_file_exts=['.bcf']
+            chrom_column='#CHROM', pos_columns=['POS'],
+            txt_file_exts=['.vcf', '.txt', '.tsv'], bin_file_exts=['.bcf']
         )
 
     def load(self):
@@ -80,9 +81,10 @@ class VcfDataFrame(BaseBioDataFrame):
 
     def expand_info_col(self, df=None):
         self.__logger.info('Expand the INFO column.')
-        return (df or self.df).pipe(
+        return (self.df if df is None else df).pipe(
             lambda d: d.drop(columns='INFO').join(
-                self._parse_info(df=d), how='left'
+                self._parse_info(df=d),
+                how='left'
             )
         )
 
@@ -91,20 +93,25 @@ class VcfDataFrame(BaseBioDataFrame):
         return pd.DataFrame([
             dict([
                 ('index', id),
-                *[tuple(s.split('=', maxsplit=1)) for s in string.split(':')]
-            ]) for id, string in df['INFO'].iteritems()
-        ]).set_index('index')
+                *[
+                    (s.split('=', maxsplit=1)[0], re.sub(r'^[^=]+=?', '', s))
+                    for s in val.split(';')
+                ]
+            ]) for id, val in df['INFO'].iteritems()
+        ]).set_index('index').pipe(
+            lambda d: d.rename(columns={k: 'INFO_' + k for k in d.columns})
+        )
 
     def expand_samples_cols(self, df=None):
         self.__logger.info('Expand the columns of samples.')
-        return (df or self.df).pipe(
-            lambda d: d[self.__fixed_cols[:8]].join(
-                self._parse_format_and_samples(df=d), how='left'
+        return (self.df if df is None else df).pipe(
+            lambda d: d.drop(columns=['FORMAT', *self.samples]).join(
+                self._parse_samples(df=d, samples=self.samples), how='left'
             )
         )
 
     @staticmethod
-    def _parse_format_and_samples(df):
+    def _parse_samples(df, samples):
         format_key_list = df['FORMAT'].str.split(':').tolist()
         return pd.DataFrame([
             dict([
@@ -115,5 +122,5 @@ class VcfDataFrame(BaseBioDataFrame):
                         for k, v in zip(format_key_list[id], s.split(':'))
                     ] for n, s in row.items()
                 ])
-            ]) for id, row in df[df.columns[9:]].iterrows()
+            ]) for id, row in df[samples].iterrows()
         ]).set_index('index')

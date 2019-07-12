@@ -34,7 +34,8 @@ class SamDataFrame(BaseBioDataFrame):
         self.__detected_col_dtypes = dict()
         super().__init__(
             path=path, format_name='SAM', delimiter='\t', column_header=False,
-            chrom_column='RNAME', txt_file_exts=['.sam', '.txt', '.tsv'],
+            chrom_column='RNAME', pos_columns=['POS'],
+            txt_file_exts=['.sam', '.txt', '.tsv'],
             bin_file_exts=['.bam', '.cram']
         )
 

@@ -3,8 +3,8 @@
 Pandas-based Data Handler for VCF, BED, and SAM Files.
 
 Usage:
-    pdbio vcf2csv [--debug|--info] [--sort] [--tsv] [--header=<path>]
-                  [--dst=<path>] <src>
+    pdbio vcf2csv [--debug|--info] [--sort] [--tsv] [--expand-info]
+                  [--expand-samples] [--header=<path>] [--dst=<path>] <src>
     pdbio bed2csv [--debug|--info] [--sort] [--tsv] [--header=<path>]
                   [--dst=<path>] <src>
     pdbio sam2csv [--debug|--info] [--sort] [--tsv] [--header=<path>]
@@ -19,6 +19,8 @@ Options:
     --debug, --info     Execute a command with debug|info messages
     --sort              Sort a dataframe
     --tsv               Use tab instead of comma for a field delimiter
+    --expand-info       Expand the INFO column in a VCF file
+    --expand-samples    Expand columns of samples in a VCF file
     --header=<path>     Write a header into a text file
     --dst=<path>        Write results into a text file
     --version           Print version and exit
@@ -49,7 +51,7 @@ from .vcfdataframe import VcfDataFrame
 
 
 def main():
-    args = docopt(__doc__, version='fract {}'.format(__version__))
+    args = docopt(__doc__, version='pdbio {}'.format(__version__))
     _set_log_config(debug=args['--debug'], info=args['--info'])
     logger = logging.getLogger(__name__)
     logger.debug('args:{0}{1}'.format(os.linesep, args))
@@ -59,7 +61,9 @@ def main():
         _convert_file_to_csv(
             src_path=args['<src>'], dst_path=args['--dst'],
             sort=args['--sort'], sep=('\t' if args['--tsv'] else ','),
-            header_dst_path=args['--header'], file_format=csv_convert[0]
+            header_dst_path=args['--header'], file_format=csv_convert[0],
+            expand_info=args['--expand-info'],
+            expand_samples=args['--expand-samples']
         )
     elif chrom_sort:
         _sort_by_chrom(
@@ -81,7 +85,8 @@ def _sort_by_chrom(src_path, dst_path=None, file_format='vcf'):
 
 
 def _convert_file_to_csv(src_path, dst_path=None, sort=False, sep=',',
-                         header_dst_path=None, file_format='vcf'):
+                         header_dst_path=None, file_format='vcf',
+                         expand_info=False, expand_samples=False):
     if file_format == 'vcf':
         biodf = VcfDataFrame(path=src_path)
     elif file_format == 'bed':
@@ -92,7 +97,13 @@ def _convert_file_to_csv(src_path, dst_path=None, sort=False, sep=',',
         raise ValueError('invalid file format: {}'.format(file_format))
     if sort:
         biodf.sort()
-    biodf.df.to_csv(
+    df = biodf.df
+    if file_format == 'vcf':
+        if expand_info:
+            df = biodf.expand_info_col(df=df)
+        if expand_samples:
+            df = biodf.expand_samples_cols(df=df)
+    df.to_csv(
         (biodf.normalize_path(dst_path) if dst_path else sys.stdout),
         sep=sep, index=False
     )

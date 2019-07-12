@@ -32,7 +32,8 @@ class BedDataFrame(BaseBioDataFrame):
         self.__detected_col_dtypes = dict()
         super().__init__(
             path=path, format_name='BED', delimiter='\t', column_header=False,
-            chrom_column='chrom', txt_file_exts=['.bed', '.txt', '.tsv']
+            chrom_column='chrom', pos_columns=['chromStart', 'chromEnd'],
+            txt_file_exts=['.bed', '.txt', '.tsv']
         )
 
     def load(self):
