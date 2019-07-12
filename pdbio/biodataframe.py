@@ -13,7 +13,7 @@ import re
 import subprocess
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from itertools import product
+from itertools import chain, product
 from multiprocessing import cpu_count
 
 import pandas as pd
@@ -164,14 +164,14 @@ class VcfDataFrame(BaseBioDataFrame):
             if items[:len(self.__fixed_cols)] == self.__fixed_cols:
                 samples = [s for s in items if s not in self.__fixed_cols]
                 self.sample_dict = OrderedDict([
-                    ('SAMPLE{}'.format(i), n) for i, n in enumerate(samples)
+                    ('SAMPLE_{}'.format(i), n) for i, n in enumerate(samples)
                 ])
                 n_fixed_cols = len(self.__fixed_cols)
                 n_detected_cols = len(items)
                 self.__detected_cols = [
                     *self.__fixed_cols,
                     *[
-                        'SAMPLE{}'.format(i)
+                        'SAMPLE_{}'.format(i)
                         for i in range(max(n_detected_cols - n_fixed_cols, 0))
                     ]
                 ]
@@ -191,7 +191,48 @@ class VcfDataFrame(BaseBioDataFrame):
             )
 
     def sort_df(self):
+        self.__logger.info('Sort the VCF dataframe.')
         self.sort_df_by_chrom(chrom_col='#CHROM', add_cols=self.__fixed_cols)
+
+    def expand_info_col(self, df=None):
+        self.__logger.info('Expand the INFO column.')
+        return (df or self.df).pipe(
+            lambda d: d.drop(columns='INFO').join(
+                self._parse_info(df=d), how='left'
+            )
+        )
+
+    @staticmethod
+    def _parse_info(df):
+        return pd.DataFrame([
+            dict([
+                ('index', id),
+                *[tuple(s.split('=', maxsplit=1)) for s in string.split(':')]
+            ]) for id, string in df['INFO'].iteritems()
+        ]).set_index('index')
+
+    def expand_samples_cols(self, df=None):
+        self.__logger.info('Expand the columns of samples.')
+        return (df or self.df).pipe(
+            lambda d: d[self.__fixed_cols[:8]].join(
+                self._parse_format_and_samples(df=d), how='left'
+            )
+        )
+
+    @staticmethod
+    def _parse_format_and_samples(df):
+        format_key_list = df['FORMAT'].str.split(':').tolist()
+        return pd.DataFrame([
+            dict([
+                ('index', id),
+                *chain.from_iterable([
+                    [
+                        ('{0}_{1}'.format(n, k), v)
+                        for k, v in zip(format_key_list[id], s.split(':'))
+                    ] for n, s in row.items()
+                ])
+            ]) for id, row in df[df.columns[9:]].iterrows()
+        ]).set_index('index')
 
     def write_vcf(self, path):
         self.__logger.info('Write a VCF file: {}'.format(path))
@@ -259,6 +300,7 @@ class BedDataFrame(BaseBioDataFrame):
             )
 
     def sort_df(self):
+        self.__logger.info('Sort the BED dataframe.')
         self.sort_df_by_chrom(chrom_col='chrom', add_cols=self.__fixed_cols)
 
     def write_bed(self, path):
@@ -344,6 +386,7 @@ class SamDataFrame(BaseBioDataFrame):
             )
 
     def sort_df(self):
+        self.__logger.info('Sort the SAM dataframe.')
         self.sort_df_by_chrom(chrom_col='RNAME', add_cols=self.__fixed_cols)
 
     def write_sam(self, path):
