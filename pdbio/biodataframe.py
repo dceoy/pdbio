@@ -9,6 +9,7 @@ import gzip
 import logging
 import os
 import subprocess
+import sys
 from abc import ABCMeta, abstractmethod
 from itertools import product
 
@@ -37,9 +38,9 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         self.header = list()
         self.df = pd.DataFrame()
         if path:
-            self.load_file(path=path)
+            self.load_table(path=path)
 
-    def load_file(self, path):
+    def load_table(self, path):
         self._update_path(path=path)
         self.__logger.info(
             'Load {0} file: {1}'.format(self.__format_name, self.path)
@@ -77,22 +78,31 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         else:
             return open(path, mode='r')
 
-    def write_file(self, path, **kwargs):
-        abspath = self.normalize_path(path=path)
-        self.__logger.info(
-            'Write {0} file: {1}'.format(self.__format_name, abspath)
-        )
+    def output_table(self, path=None, **kwargs):
+        if path:
+            abspath = self.normalize_path(path=path)
+            self.__logger.info(
+                'Write {0} file: {1}'.format(self.__format_name, abspath)
+            )
+        else:
+            abspath = None
+            self.__logger.info('Print {}'.format(self.__format_name))
         if self.header:
-            self.write_header(path=abspath)
+            self.output_header(path=abspath)
         self.df.to_csv(
-            path, mode=('a' if self.header else 'w'), index=False,
-            header=self.__column_header, sep=self.__delimiter, **kwargs
+            (abspath or sys.stdout), mode=('a' if self.header else 'w'),
+            index=False, header=self.__column_header, sep=self.__delimiter,
+            **kwargs
         )
 
-    def write_header(self, path):
-        with open(path, mode='w') as f:
+    def output_header(self, path=None):
+        if path:
+            with open(path, mode='w') as f:
+                for h in self.header:
+                    f.write(h + os.linesep)
+        else:
             for h in self.header:
-                f.write(h + os.linesep)
+                print(h, flush=True)
 
     def sort(self, **kwargs):
         self.df = self._sort_df(**kwargs)
