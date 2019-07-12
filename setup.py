@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
+import os
+
 from setuptools import find_packages, setup
 
 from pdbio import __version__
+
+with open(os.path.join(os.path.dirname(__file__), 'README.md'), 'r') as f:
+    readme_str = f.read()
 
 setup(
     name='pdbio',
@@ -28,9 +33,5 @@ setup(
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Bio-Informatics'
     ],
-    long_description="""\
-# pdbio
-
-Pandas-based Data Handler for VCF, BED, and SAM Files
-"""
+    long_description=readme_str
 )

@@ -25,7 +25,7 @@ vcf_path = '/path/to/input/vcf'
 vcfdf = VcfDataFrame(path=vcf_path)
 
 pprint(vcfdf.header)
-pprint(vcfdf.sample_dict)
+pprint(vcfdf.samples)
 print(vcfdf.df)
 ```
 
@@ -37,14 +37,15 @@ $ pdbio --help
 Pandas-based Data Handler for VCF, BED, and SAM Files.
 
 Usage:
-    pdbio vcf2csv [--debug] [--tsv] [--header=<txt>] <vcf> <csv>
-    pdbio bed2csv [--debug] [--tsv] [--header=<txt>] <bed> <csv>
-    pdbio sam2csv [--debug] [--tsv] [--header=<txt>] <sam> <csv>
+    pdbio vcf2csv [--debug] [--sort] [--tsv] [--header=<txt>] <vcf> <csv>
+    pdbio bed2csv [--debug] [--sort] [--tsv] [--header=<txt>] <bed> <csv>
+    pdbio sam2csv [--debug] [--sort] [--tsv] [--header=<txt>] <sam> <csv>
     pdbio --version
     pdbio -h|--help
 
 Options:
     --debug, --info     Execute a command with debug|info messages
+    --sort              Sort a dataframe
     --tsv               Use tab instead of comma for a field delimiter
     --header=<txt>      Write a VCF header into a text file
     --version           Print version and exit

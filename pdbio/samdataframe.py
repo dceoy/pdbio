@@ -7,7 +7,6 @@ https://github.com/dceoy/pdbio
 import io
 import logging
 import re
-from itertools import product
 from multiprocessing import cpu_count
 
 import pandas as pd
@@ -18,16 +17,7 @@ from .biodataframe import BaseBioDataFrame
 class SamDataFrame(BaseBioDataFrame):
     """SAM DataFrame handler."""
 
-    def __init__(self, path, return_df=False, samtools=None, n_thread=None):
-        super().__init__(
-            path=path,
-            supported_exts=[
-                *[
-                    (e + c) for e, c in
-                    product(['.sam', '.txt', '.tsv'], ['', '.gz', '.bz2'])
-                ], '.bam', '.cram'
-            ]
-        )
+    def __init__(self, path, samtools=None, n_thread=None):
         self.__logger = logging.getLogger(__name__)
         self.__samtools = samtools
         self.__n_thread = n_thread
@@ -42,13 +32,13 @@ class SamDataFrame(BaseBioDataFrame):
         }
         self.__detected_cols = list()
         self.__detected_col_dtypes = dict()
-        if return_df:
-            self.load_and_output_df()
-        else:
-            self.load()
+        super().__init__(
+            path=path, format_name='SAM', delimiter='\t', column_header=False,
+            chrom_column='RNAME', txt_file_exts=['.sam', '.txt', '.tsv'],
+            bin_file_exts=['.bam', '.cram']
+        )
 
     def load(self):
-        self.__logger.info('Load a SAM file: {}'.format(self.path))
         if self.path.endswith(('.bam', '.cram')):
             args = [
                 (self.__samtools or self.fetch_executable('samtools')), 'view',
@@ -60,7 +50,6 @@ class SamDataFrame(BaseBioDataFrame):
             with self.open_readable_file(path=self.path) as f:
                 for s in f:
                     self._load_sam_line(string=s)
-        self.df = self.df.reset_index(drop=True)
 
     def _load_sam_line(self, string):
         if re.match(r'@[A-Z]{1}', string):
@@ -85,17 +74,6 @@ class SamDataFrame(BaseBioDataFrame):
                     io.StringIO(string), sep='\t', header=None,
                     names=self.__detected_cols,
                     dtype=self.__detected_col_dtypes
-                )
+                ),
+                ignore_index=True
             )
-
-    def sort_df(self):
-        self.__logger.info('Sort the SAM dataframe.')
-        self.sort_df_by_chrom(chrom_col='RNAME', add_cols=self.__fixed_cols)
-
-    def write_sam(self, path):
-        self.__logger.info('Write a SAM file: {}'.format(path))
-        self.write_header(path=path)
-        self.df.to_csv(
-            path, header=False, mode=('a' if self.header else 'w'), sep='\t',
-            index=False
-        )

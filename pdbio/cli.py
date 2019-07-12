@@ -3,14 +3,18 @@
 Pandas-based Data Handler for VCF, BED, and SAM Files.
 
 Usage:
-    pdbio vcf2csv [--debug] [--tsv] [--header=<txt>] <vcf> <csv>
-    pdbio bed2csv [--debug] [--tsv] [--header=<txt>] <bed> <csv>
-    pdbio sam2csv [--debug] [--tsv] [--header=<txt>] <sam> <csv>
+    pdbio vcf2csv [--debug|--info] [--sort] [--tsv] [--header=<txt>] <src>
+                  <dst>
+    pdbio bed2csv [--debug|--info] [--sort] [--tsv] [--header=<txt>] <src>
+                  <dst>
+    pdbio sam2csv [--debug|--info] [--sort] [--tsv] [--header=<txt>] <src>
+                  <dst>
     pdbio --version
     pdbio -h|--help
 
 Options:
     --debug, --info     Execute a command with debug|info messages
+    --sort              Sort a dataframe
     --tsv               Use tab instead of comma for a field delimiter
     --header=<txt>      Write a VCF header into a text file
     --version           Print version and exit
@@ -18,16 +22,14 @@ Options:
 
 Commands:
     vcf2csv             Convert a VCF/BCF file to a CSV file
+                        (BCF files require `bcftools` command)
     bed2csv             Convert a BED file to a CSV file
     sam2csv             Convert a SAM/BAM/CRAM file to a CSV file
+                        (BAM/CRAM files require `samtools` command)
 
 Arguments:
-    <vcf>               Path to a VCF/BCF file
-                        (BCF files require `bcftools` command)
-    <bed>               Path to a BED file
-    <sam>               Path to a SAM/BAM/CRAM file
-                        (BAM/CRAM files require `samtools` command)
-    <csv>               Path to a CSV/TSV file
+    <src>               Path to an input file
+    <dst>               Path to an output file
 """
 
 import logging
@@ -46,44 +48,31 @@ def main():
     _set_log_config(debug=args['--debug'], info=args['--info'])
     logger = logging.getLogger(__name__)
     logger.debug('args:{0}{1}'.format(os.linesep, args))
-    if args['vcf2csv']:
+    csv_convert = [k for k in ['vcf2csv', 'bed2csv', 'sam2csv'] if args[k]]
+    if csv_convert:
         _convert_file_to_csv(
-            src_path=args['<vcf>'], csv_dst_path=args['<csv>'],
+            src_path=args['<src>'], csv_dst_path=args['<dst>'],
+            sort=args['--sort'], sep=('\t' if args['--tsv'] else ','),
             header_txt_dst_path=args['--header'],
-            sep=('\t' if args['--tsv'] else ',')
-        )
-    elif args['bed2csv']:
-        _convert_file_to_csv(
-            src_path=args['<bed>'], csv_dst_path=args['<csv>'],
-            header_txt_dst_path=args['--header'],
-            sep=('\t' if args['--tsv'] else ',')
-        )
-    elif args['sam2csv']:
-        _convert_file_to_csv(
-            src_path=args['<sam>'], csv_dst_path=args['<csv>'],
-            header_txt_dst_path=args['--header'],
-            sep=('\t' if args['--tsv'] else ',')
+            file_format=csv_convert[0].split('2')[0]
         )
 
 
-def _convert_file_to_csv(src_path, csv_dst_path, header_txt_dst_path=None,
-                         sep=',', file_format='vcf'):
+def _convert_file_to_csv(src_path, csv_dst_path, sort=False, sep=',',
+                         header_txt_dst_path=None, file_format='vcf'):
     if file_format == 'vcf':
         biodf = VcfDataFrame(path=src_path)
-        df = biodf.df.rename(biodf.sample_dict)
     elif file_format == 'bed':
         biodf = BedDataFrame(path=src_path)
-        df = biodf.df
     elif file_format == 'sam':
         biodf = SamDataFrame(path=src_path)
-        df = biodf.df
     else:
         raise ValueError('invalid file format: {}'.format(file_format))
-    df.to_csv(_fetch_abspath(csv_dst_path), sep=sep, index=False)
+    if sort:
+        biodf.sort()
+    biodf.df.to_csv(biodf.normalize_path(csv_dst_path), sep=sep, index=False)
     if header_txt_dst_path and biodf.header:
-        with open(_fetch_abspath(header_txt_dst_path), 'w') as f:
-            for h in biodf.header:
-                f.write(h + os.linesep)
+        biodf.write_header(path=biodf.normalize_path(header_txt_dst_path))
 
 
 def _set_log_config(debug=None, info=None):
@@ -97,7 +86,3 @@ def _set_log_config(debug=None, info=None):
         format='%(asctime)s %(levelname)-8s %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S', level=lv
     )
-
-
-def _fetch_abspath(path):
-    return os.path.abspath(os.path.expanduser(os.path.expandvars(path)))
