@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 from abc import ABCMeta, abstractmethod
+from collections import OrderedDict
 from itertools import product
 
 import pandas as pd
@@ -129,10 +130,15 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
     def _sort_by_chrom_and_pos(self, df, **kwargs):
         ci = self.__chrom_column + '_sort_index'
         pis = self.__pos_columns or list()
-        sort_keys = [ci, *pis, *[c for c in df.columns if c not in pis]]
         return df.assign(**{
             ci: (lambda d: d[self.__chrom_column].apply(self._chrom2int))
-        }).sort_values(by=sort_keys, **kwargs).drop(columns=ci)
+        }).sort_values(
+            by=list(
+                OrderedDict.fromkeys([
+                    ci, self.__chrom_column, *pis, *df.columns
+                ])
+            ), **kwargs
+        ).drop(columns=ci)
 
     @staticmethod
     def _chrom2int(chrom):
