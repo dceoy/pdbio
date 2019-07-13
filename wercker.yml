@@ -21,11 +21,13 @@ test:
           pdbio vcf2csv --expand-info --expand-samples test/example.vcf
           pdbio vcfsort test/example.vcf
           pdbio bed2csv --sort --tsv test/example.bed
-          pdbio bed2csv --dst=/tmp/example.bed.csv test/example.bed
+          pdbio bed2csv test/example.bed /tmp/example.bed.csv
+          cat /tmp/example.bed.csv
           pdbio bedsort test/example.bed
           pdbio sam2csv --sort --tsv test/example.sam
           pdbio sam2csv test/example.sam
-          pdbio samsort --dst=/tmp/example.sorted.sam test/example.sam
+          pdbio samsort test/example.sam /tmp/example.sorted.sam
+          cat /tmp/example.sorted.sam
   after-steps:
     - slack-notifier:
         url: $SLACK_URL

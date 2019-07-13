@@ -4,14 +4,14 @@ Pandas-based Data Handler for VCF, BED, and SAM Files.
 
 Usage:
     pdbio vcf2csv [--debug|--info] [--sort] [--tsv] [--expand-info]
-                  [--expand-samples] [--header=<path>] [--dst=<path>] <src>
+                  [--expand-samples] [--header=<path>] <src> [<dst>]
     pdbio bed2csv [--debug|--info] [--sort] [--tsv] [--header=<path>]
-                  [--dst=<path>] <src>
+                  <src> [<dst>]
     pdbio sam2csv [--debug|--info] [--sort] [--tsv] [--header=<path>]
-                  [--dst=<path>] <src>
-    pdbio vcfsort [--debug|--info] [--dst=<path>] <src>
-    pdbio bedsort [--debug|--info] [--dst=<path>] <src>
-    pdbio samsort [--debug|--info] [--dst=<path>] <src>
+                  <src> [<dst>]
+    pdbio vcfsort [--debug|--info] <src> [<dst>]
+    pdbio bedsort [--debug|--info] <src> [<dst>]
+    pdbio samsort [--debug|--info] <src> [<dst>]
     pdbio --version
     pdbio -h|--help
 
@@ -22,7 +22,6 @@ Options:
     --expand-info       Expand the INFO column in a VCF file
     --expand-samples    Expand columns of samples in a VCF file
     --header=<path>     Write a header into a text file
-    --dst=<path>        Write results into a text file
     --version           Print version and exit
     -h, --help          Print help and exit
 
@@ -36,10 +35,12 @@ Commands:
 
 Arguments:
     <src>               Path to an input file
+    <dst>               Path to an output file
 """
 
 import logging
 import os
+import signal
 import sys
 
 from docopt import docopt
@@ -59,7 +60,7 @@ def main():
     chrom_sort = [k for k in ['vcf', 'bed', 'sam'] if args[k + 'sort']]
     if csv_convert:
         _convert_file_to_csv(
-            src_path=args['<src>'], dst_path=args['--dst'],
+            src_path=args['<src>'], dst_path=args['<dst>'],
             sort=args['--sort'], sep=('\t' if args['--tsv'] else ','),
             header_dst_path=args['--header'], file_format=csv_convert[0],
             expand_info=args['--expand-info'],
@@ -67,12 +68,13 @@ def main():
         )
     elif chrom_sort:
         _sort_by_chrom(
-            src_path=args['<src>'], dst_path=args['--dst'],
+            src_path=args['<src>'], dst_path=args['<dst>'],
             file_format=chrom_sort[0]
         )
 
 
 def _sort_by_chrom(src_path, dst_path=None, file_format='vcf'):
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     if file_format == 'vcf':
         biodf = VcfDataFrame(path=src_path)
     elif file_format == 'bed':
@@ -87,6 +89,7 @@ def _sort_by_chrom(src_path, dst_path=None, file_format='vcf'):
 def _convert_file_to_csv(src_path, dst_path=None, sort=False, sep=',',
                          header_dst_path=None, file_format='vcf',
                          expand_info=False, expand_samples=False):
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     if file_format == 'vcf':
         biodf = VcfDataFrame(path=src_path)
     elif file_format == 'bed':
