@@ -94,13 +94,20 @@ class VcfDataFrame(BaseBioDataFrame):
                 ignore_index=True
             )
 
-    def expand_info_col(self, df=None):
+    def expanded_df(self, df=None, by_info=True, by_samples=True, drop=True):
+        df_x = (self.df if df is None else df)
+        if by_info:
+            df_x = self._expand_info_col(df=df_x, drop=drop)
+        if by_samples:
+            df_x = self._expand_samples_cols(df=df_x, drop=drop)
+        return df_x
+
+    def _expand_info_col(self, df=None, drop=True):
         self.__logger.info('Expand the INFO column.')
         return (self.df if df is None else df).pipe(
-            lambda d: d.drop(columns='INFO').join(
-                self._parse_info(df=d),
-                how='left'
-            )
+            lambda d: (
+                d.drop(columns='INFO') if drop else d
+            ).join(self._parse_info(df=d), how='left')
         )
 
     @staticmethod
@@ -117,12 +124,12 @@ class VcfDataFrame(BaseBioDataFrame):
             lambda d: d.rename(columns={k: 'INFO_' + k for k in d.columns})
         )
 
-    def expand_samples_cols(self, df=None):
+    def _expand_samples_cols(self, df=None, drop=True):
         self.__logger.info('Expand the columns of samples.')
         return (self.df if df is None else df).pipe(
-            lambda d: d.drop(columns=['FORMAT', *self.samples]).join(
-                self._parse_samples(df=d, samples=self.samples), how='left'
-            )
+            lambda d: (
+                d.drop(columns=['FORMAT', *self.samples]) if drop else d
+            ).join(self._parse_samples(df=d, samples=self.samples), how='left')
         )
 
     @staticmethod

@@ -102,10 +102,9 @@ def _convert_file_to_csv(src_path, dst_path=None, sort=False, sep=',',
         biodf.sort()
     df = biodf.df
     if file_format == 'vcf':
-        if expand_info:
-            df = biodf.expand_info_col(df=df)
-        if expand_samples:
-            df = biodf.expand_samples_cols(df=df)
+        df = biodf.expanded_df(
+            df=df, by_info=expand_info, by_samples=expand_samples
+        )
     df.to_csv(
         (biodf.normalize_path(dst_path) if dst_path else sys.stdout),
         sep=sep, index=False
