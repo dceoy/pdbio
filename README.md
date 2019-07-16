@@ -19,7 +19,7 @@ Example of API call
 
 ```py
 from pprint import pprint
-from pdbio.biodataframe import VcfDataFrame
+from pdbio.vcfdataframe import VcfDataFrame
 
 vcf_path = 'test/example.vcf'
 vcfdf = VcfDataFrame(path=vcf_path)
@@ -28,7 +28,7 @@ pprint(vcfdf.header)      # list of header
 pprint(vcfdf.samples)     # list of samples
 print(vcfdf.df)           # VCF dataframe
 
-vcffdf.sort()             # sort by CHROM, POS, and the other
+vcfdf.sort()              # sort by CHROM, POS, and the other
 print(vcfdf.df)           # sorted dataframe
 ```
 

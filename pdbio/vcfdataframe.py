@@ -33,11 +33,26 @@ class VcfDataFrame(BaseBioDataFrame):
         self.__detected_cols = list()
         self.__detected_col_dtypes = dict()
         self.samples = list()
+        self.sample_dict = dict()
         super().__init__(
             path=path, format_name='VCF', delimiter='\t', column_header=True,
             chrom_column='#CHROM', pos_columns=['POS'],
             txt_file_exts=['.vcf', '.txt', '.tsv'], bin_file_exts=['.bcf']
         )
+
+    def rename_samples_cols(self, prefix='SAMPLE_', sample_dict=None):
+        self.__logger.info('Rename columns of samples')
+        new_sample_dict = (
+            sample_dict
+            or {s: (prefix + str(i)) for i, s in enumerate(self.samples)}
+        )
+        self.__logger.debug('new_sample_dict: {}'.format(new_sample_dict))
+        renaming_dict = (
+            {v: new_sample_dict[k] for k, v in self.sample_dict.items()}
+            if self.sample_dict else new_sample_dict
+        )
+        self.sample_dict = new_sample_dict
+        self.df = self.df.rename(columns=renaming_dict)
 
     def load(self):
         if self.path.endswith('.bcf'):
