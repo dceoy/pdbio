@@ -15,7 +15,7 @@ from .biodataframe import BaseBioDataFrame
 class BedDataFrame(BaseBioDataFrame):
     """BED DataFrame handler."""
 
-    def __init__(self, path, opt_cols=None):
+    def __init__(self, path, opt_cols=None, load=True):
         self.__logger = logging.getLogger(__name__)
         self.__fixed_cols = ['chrom', 'chromStart', 'chromEnd']
         self.__opt_cols = opt_cols or [
@@ -33,7 +33,7 @@ class BedDataFrame(BaseBioDataFrame):
         super().__init__(
             path=path, format_name='BED', delimiter='\t', column_header=False,
             chrom_column='chrom', pos_columns=['chromStart', 'chromEnd'],
-            txt_file_exts=['.bed', '.txt', '.tsv']
+            txt_file_exts=['.bed', '.txt', '.tsv'], load=load
         )
 
     def load(self):

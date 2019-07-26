@@ -18,7 +18,7 @@ from .biodataframe import BaseBioDataFrame
 class VcfDataFrame(BaseBioDataFrame):
     """VCF DataFrame handler."""
 
-    def __init__(self, path=None, bcftools=None, n_thread=1):
+    def __init__(self, path=None, bcftools=None, n_thread=1, load=True):
         self.__logger = logging.getLogger(__name__)
         self.__bcftools = bcftools
         self.__n_thread = n_thread
@@ -37,7 +37,8 @@ class VcfDataFrame(BaseBioDataFrame):
         super().__init__(
             path=path, format_name='VCF', delimiter='\t', column_header=True,
             chrom_column='#CHROM', pos_columns=['POS'],
-            txt_file_exts=['.vcf', '.txt', '.tsv'], bin_file_exts=['.bcf']
+            txt_file_exts=['.vcf', '.txt', '.tsv'], bin_file_exts=['.bcf'],
+            load=load
         )
 
     def rename_samples_cols(self, prefix='SAMPLE_', sample_dict=None):

@@ -17,10 +17,20 @@ from .biodataframe import BaseBioDataFrame
 class SamDataFrame(BaseBioDataFrame):
     """SAM DataFrame handler."""
 
-    def __init__(self, path, samtools=None, n_thread=None):
+    def __init__(self, path, samtools=None, n_thread=None, chrom=None,
+                 start=None, end=None, load=True):
         self.__logger = logging.getLogger(__name__)
         self.__samtools = samtools
         self.__n_thread = n_thread
+        if chrom and start and end:
+            self.__region = '{0}:{1:d}-{2:d}'.format(chrom, start, end)
+        elif chrom and start:
+            self.__region = '{0}:{1:d}'.format(chrom, start)
+        elif chrom:
+            self.__region = chrom
+        else:
+            self.__region = None
+        self.regions = [self.__region] if self.__region else None
         self.__fixed_cols = [
             'QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT',
             'TLEN', 'SEQ', 'QUAL'
@@ -36,21 +46,37 @@ class SamDataFrame(BaseBioDataFrame):
             path=path, format_name='SAM', delimiter='\t', column_header=False,
             chrom_column='RNAME', pos_columns=['POS'],
             txt_file_exts=['.sam', '.txt', '.tsv'],
-            bin_file_exts=['.bam', '.cram']
+            bin_file_exts=['.bam', '.cram'], load=load
         )
 
     def load(self):
         if self.path.endswith(('.bam', '.cram')):
-            args = [
-                (self.__samtools or self.fetch_executable('samtools')), 'view',
-                '-@', str(self.__n_thread or cpu_count()), '-h', self.path
-            ]
-            for s in self.run_and_parse_subprocess(args=args):
+            for s in self._samtools_view(options=['-h'], regions=self.regions):
                 self._load_sam_line(string=s)
         else:
             with self.open_readable_file(path=self.path) as f:
                 for s in f:
                     self._load_sam_line(string=s)
+
+    def load_header(self):
+        if self.path.endswith(('.bam', '.cram')):
+            for s in self._samtools_view(options=['-H'], regions=self.regions):
+                self._load_sam_line(string=s)
+        else:
+            with self.open_readable_file(path=self.path) as f:
+                for s in f:
+                    if re.match(r'@[A-Z]{1}', s):
+                        self.header.append(s.strip())
+
+    def _samtools_view(self, options=None, regions=None):
+        args = [
+            (self.__samtools or self.fetch_executable('samtools')), 'view',
+            '-@', str(self.__n_thread or cpu_count()),
+            *(options if options else list()), self.path,
+            *(regions if regions else list())
+        ]
+        for s in self.run_and_parse_subprocess(args=args):
+            yield s
 
     def _load_sam_line(self, string):
         if re.match(r'@[A-Z]{1}', string):

@@ -22,7 +22,7 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
 
     def __init__(self, path=None, format_name='TSV', delimiter='\t',
                  column_header=True, chrom_column=None, pos_columns=None,
-                 txt_file_exts=None, bin_file_exts=None):
+                 txt_file_exts=None, bin_file_exts=None, load=True):
         for a in [pos_columns, txt_file_exts, bin_file_exts]:
             assert type(a) is not str
         self.__logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         self.path = path
         self.header = list()
         self.df = pd.DataFrame()
-        if path:
+        if path and load:
             self.load_table(path=path)
 
     def load_table(self, path):
@@ -49,6 +49,8 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         self.__logger.info(
             'Load {0} file: {1}'.format(self.__format_name, self.path)
         )
+        self.header = list()
+        self.df = pd.DataFrame()
         self.load()
         self.__logger.debug('self.df shape: {}'.format(self.df.shape))
         self.__logger.debug('self.df:{0}{1}'.format(os.linesep, self.df))
