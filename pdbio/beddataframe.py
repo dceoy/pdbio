@@ -6,6 +6,7 @@ https://github.com/dceoy/pdbio
 
 import io
 import logging
+from collections import OrderedDict
 
 import pandas as pd
 
@@ -15,7 +16,7 @@ from .biodataframe import BaseBioDataFrame
 class BedDataFrame(BaseBioDataFrame):
     """BED DataFrame handler."""
 
-    def __init__(self, path, opt_cols=None, load=True):
+    def __init__(self, path=None, opt_cols=None, load=True):
         self.__logger = logging.getLogger(__name__)
         self.__fixed_cols = ['chrom', 'chromStart', 'chromEnd']
         self.__opt_cols = opt_cols or [
@@ -36,12 +37,12 @@ class BedDataFrame(BaseBioDataFrame):
             txt_file_exts=['.bed', '.txt', '.tsv'], load=load
         )
 
-    def load(self):
+    def load_table(self):
         with self.open_readable_file(path=self.path) as f:
-            for s in f:
-                self._load_bed_line(string=s)
+            self.df = self.convert_lines_to_df(lines=list(f))
+        return self
 
-    def _load_bed_line(self, string):
+    def parse_line(self, string, into_ordereddict=False):
         if string.startswith(('browser', 'track')):
             self.header.append(string.strip())
         else:
@@ -53,11 +54,11 @@ class BedDataFrame(BaseBioDataFrame):
                     k: (self.__fixed_col_dtypes.get(k) or str)
                     for k in self.__detected_cols
                 }
-            self.df = self.df.append(
-                pd.read_csv(
-                    io.StringIO(string), sep='\t', header=None,
-                    names=self.__detected_cols,
-                    dtype=self.__detected_col_dtypes
-                ),
-                ignore_index=True
+            df = pd.read_csv(
+                io.StringIO(string), sep='\t', header=None,
+                names=self.__detected_cols, dtype=self.__detected_col_dtypes
             )
+            if into_ordereddict:
+                return df.iloc[0].to_dict(into=OrderedDict)
+            else:
+                return df

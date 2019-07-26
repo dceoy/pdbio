@@ -7,6 +7,7 @@ https://github.com/dceoy/pdbio
 import io
 import logging
 import re
+from collections import OrderedDict
 from itertools import chain
 from multiprocessing import cpu_count
 
@@ -41,34 +42,15 @@ class VcfDataFrame(BaseBioDataFrame):
             load=load
         )
 
-    def rename_samples_cols(self, prefix='SAMPLE_', sample_dict=None):
-        self.__logger.info('Rename columns of samples')
-        new_sample_dict = (
-            sample_dict
-            or {s: (prefix + str(i)) for i, s in enumerate(self.samples)}
-        )
-        self.__logger.debug('new_sample_dict: {}'.format(new_sample_dict))
-        renaming_dict = (
-            {v: new_sample_dict[k] for k, v in self.sample_dict.items()}
-            if self.sample_dict else new_sample_dict
-        )
-        self.sample_dict = new_sample_dict
-        self.df = self.df.rename(columns=renaming_dict)
-
-    def load(self):
+    def load_table(self):
         if self.path.endswith('.bcf'):
-            args = [
-                (self.__bcftools or self.fetch_executable('bcftools')), 'view',
-                '--threads', str(self.__n_thread or cpu_count()), self.path
-            ]
-            for s in self.run_and_parse_subprocess(args=args):
-                self._load_vcf_line(string=s)
+            self.df = self.convert_lines_to_df(lines=list(self.view()))
         else:
             with self.open_readable_file(path=self.path) as f:
-                for s in f:
-                    self._load_vcf_line(string=s)
+                self.df = self.convert_lines_to_df(lines=list(f))
+        return self
 
-    def _load_vcf_line(self, string):
+    def parse_line(self, string, into_ordereddict=False):
         if string.startswith('##'):
             self.header.append(string.strip())
         elif string.startswith('#CHROM'):
@@ -86,14 +68,38 @@ class VcfDataFrame(BaseBioDataFrame):
                 if s not in [*self.__fixed_cols, *self.__opt_cols]
             ]
         else:
-            self.df = self.df.append(
-                pd.read_csv(
-                    io.StringIO(string), sep='\t', header=None,
-                    names=self.__detected_cols,
-                    dtype=self.__detected_col_dtypes
-                ),
-                ignore_index=True
+            df = pd.read_csv(
+                io.StringIO(string), sep='\t', header=None,
+                names=self.__detected_cols, dtype=self.__detected_col_dtypes
             )
+            if into_ordereddict:
+                return df.iloc[0].to_dict(into=OrderedDict)
+            else:
+                return df
+
+    def view(self, options=None, regions=None):
+        args = [
+            (self.__bcftools or self.fetch_executable('bcftools')), 'view',
+            '--threads', str(self.__n_thread or cpu_count()),
+            *(options if options else list()), self.path,
+            *(regions if regions else list())
+        ]
+        for s in self.run_and_parse_subprocess(args=args):
+            yield s
+
+    def rename_samples_cols(self, prefix='SAMPLE_', sample_dict=None):
+        self.__logger.info('Rename columns of samples')
+        new_sample_dict = (
+            sample_dict
+            or {s: (prefix + str(i)) for i, s in enumerate(self.samples)}
+        )
+        self.__logger.debug('new_sample_dict: {}'.format(new_sample_dict))
+        renaming_dict = (
+            {v: new_sample_dict[k] for k, v in self.sample_dict.items()}
+            if self.sample_dict else new_sample_dict
+        )
+        self.sample_dict = new_sample_dict
+        self.df = self.df.rename(columns=renaming_dict)
 
     def expanded_df(self, df=None, by_info=True, by_samples=True, drop=True):
         df_x = (self.df if df is None else df)

@@ -42,18 +42,15 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         self.header = list()
         self.df = pd.DataFrame()
         if path and load:
-            self.load_table(path=path)
+            self.load(path=path)
 
-    def load_table(self, path):
+    def load(self, path):
         self._update_path(path=path)
         self.__logger.info(
             'Load {0} file: {1}'.format(self.__format_name, self.path)
         )
-        self.header = list()
-        self.df = pd.DataFrame()
-        self.load()
+        self.load_table()
         self.__logger.debug('self.df shape: {}'.format(self.df.shape))
-        self.__logger.debug('self.df:{0}{1}'.format(os.linesep, self.df))
         return self
 
     def _update_path(self, path):
@@ -72,10 +69,25 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         return os.path.abspath(os.path.expanduser(os.path.expandvars(path)))
 
     @abstractmethod
-    def load(self):
+    def load_table(self):
         self.df = pd.read_csv(
             self.path, header=self.__column_header, sep=self.__delimiter
         )
+        return self
+
+    def convert_lines_to_df(self, lines):
+        self.header = list()
+        return pd.concat(
+            [
+                d for d in [self.parse_line(string=s) for s in lines]
+                if isinstance(d, pd.DataFrame)
+            ],
+            ignore_index=True
+        )
+
+    @abstractmethod
+    def parse_line(self, string, into_ordereddict=False):
+        pass
 
     @staticmethod
     def open_readable_file(path):
@@ -164,6 +176,7 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
 
     def run_and_parse_subprocess(self, args, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, **kwargs):
+        self.__logger.debug('args: {}'.format(args))
         with subprocess.Popen(args=args, stdout=stdout, stderr=stderr,
                               **kwargs) as p:
             for line in p.stdout:
