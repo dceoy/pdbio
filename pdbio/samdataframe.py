@@ -101,7 +101,20 @@ class SamDataFrame(BaseBioDataFrame):
                            completely_inclusion=True, options=None,
                            into_ordereddict=False):
         self.__logger.info('Load SAM file by region: {}'.format(self.path))
-        if completely_inclusion:
+        if startpos > endpos:
+            raise ValueError(
+                'invalid range (startpos > endpos): {0}:{1}-{2}'.format(
+                    rname, startpos, endpos
+                )
+            )
+        elif startpos == endpos or not completely_inclusion:
+            lines = list(
+                self.view(
+                    options=options,
+                    regions=['{0}:{1:d}-{2:d}'.format(rname, startpos, endpos)]
+                )
+            )
+        else:
             edges = [
                 ['{0}:{1:d}-{1:d}'.format(rname, p)]
                 for p in [startpos, endpos]
@@ -110,13 +123,7 @@ class SamDataFrame(BaseBioDataFrame):
                 s for s in self.view(options=options, regions=edges[0])
                 if s in set(self.view(options=options, regions=edges[1]))
             ]
-        else:
-            lines = list(
-                self.view(
-                    options=options,
-                    regions=['{0}:{1:d}-{2:d}'.format(rname, startpos, endpos)]
-                )
-            )
-        self.df = self.convert_lines_to_df(lines=lines)
+        self.header = list(self.view(options=['-H']))
+        self.df = self.convert_lines_to_df(lines=lines, update_header=False)
         self.__logger.debug('self.df shape: {}'.format(self.df.shape))
         return self

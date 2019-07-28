@@ -75,8 +75,9 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         )
         return self
 
-    def convert_lines_to_df(self, lines):
-        self.header = list()
+    def convert_lines_to_df(self, lines, update_header=True):
+        if update_header:
+            self.header = list()
         return pd.concat(
             [
                 d for d in [self.parse_line(string=s) for s in lines]
