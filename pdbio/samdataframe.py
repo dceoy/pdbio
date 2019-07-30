@@ -10,6 +10,7 @@ import re
 from collections import OrderedDict
 from multiprocessing import cpu_count
 
+import numpy as np
 import pandas as pd
 
 from .biodataframe import BaseBioDataFrame
@@ -127,3 +128,27 @@ class SamDataFrame(BaseBioDataFrame):
         self.df = self.convert_lines_to_df(lines=lines, update_header=False)
         self.__logger.debug('self.df shape: {}'.format(self.df.shape))
         return self
+
+    def median_depth(self, region=None, min_baseq=None, min_mapq=None):
+        return np.median(
+            self._depth_array(
+                region=region, min_baseq=min_baseq, min_mapq=min_mapq
+            )
+        )
+
+    def describe_depth(self, region=None, min_baseq=None, min_mapq=None):
+        return self._depth_array(
+            region=region, min_baseq=min_baseq, min_mapq=min_mapq
+        ).describe()
+
+    def _depth_array(self, region=None, min_baseq=None, min_mapq=None):
+        args = [
+            (self.__samtools or self.fetch_executable('samtools')), 'depth',
+            *(['-q', str(min_baseq)] if min_baseq is not None else list()),
+            *(['-Q', str(min_mapq)] if min_mapq is not None else list()),
+            *(['-r', region] if region else list()), self.path
+        ]
+        return pd.Series([
+            s.strip().split('\t', maxsplit=2)[2]
+            for s in self.run_and_parse_subprocess(args=args)
+        ]).astype(np.int32)
