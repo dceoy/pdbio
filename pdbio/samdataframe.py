@@ -66,13 +66,11 @@ class SamDataFrame(BaseBioDataFrame):
             self.header.append(string.strip())
         else:
             if not self.__detected_cols:
-                n_fixed_cols = len(self.__fixed_cols)
-                n_detected_cols = string.count('\t') + 1
                 self.__detected_cols = [
                     *self.__fixed_cols,
                     *[
-                        'OPT{}'.format(i)
-                        for i in range(max(n_detected_cols - n_fixed_cols, 0))
+                        s.split(':', maxsplit=1)[0]
+                        for s in string.split('\t')[len(self.__fixed_cols):]
                     ]
                 ]
                 self.__detected_col_dtypes = {
