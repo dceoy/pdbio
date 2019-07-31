@@ -4,7 +4,6 @@ Pandas-based SAM Data Handler.
 https://github.com/dceoy/pdbio
 """
 
-import io
 import logging
 import re
 from collections import OrderedDict
@@ -42,8 +41,6 @@ class SamDataFrame(BaseBioDataFrame):
             'CIGAR': str, 'RNEXT': str, 'PNEXT': int, 'TLEN': int, 'SEQ': str,
             'QUAL': str
         }
-        self.__detected_cols = list()
-        self.__detected_col_dtypes = dict()
         super().__init__(
             path=path, format_name='SAM', delimiter='\t', column_header=False,
             chrom_column='RNAME', pos_columns=['POS'],
@@ -59,28 +56,26 @@ class SamDataFrame(BaseBioDataFrame):
         else:
             with self.open_readable_file(path=self.path) as f:
                 self.df = self.convert_lines_to_df(lines=list(f))
+        self.__logger.debug(
+            'self.df.columns: {}'.format(self.df.columns)
+        )
         return self
 
     def parse_line(self, string, into_ordereddict=False):
         if re.match(r'@[A-Z]{1}', string):
             self.header.append(string.strip())
-        else:
-            if not self.__detected_cols:
-                self.__detected_cols = [
+        elif string.strip():
+            items = string.strip().split('\t')
+            df = pd.DataFrame(
+                [items],
+                columns=[
                     *self.__fixed_cols,
                     *[
                         s.split(':', maxsplit=1)[0]
-                        for s in string.split('\t')[len(self.__fixed_cols):]
+                        for s in items[len(self.__fixed_cols):]
                     ]
                 ]
-                self.__detected_col_dtypes = {
-                    k: (self.__fixed_col_dtypes.get(k) or str)
-                    for k in self.__detected_cols
-                }
-            df = pd.read_csv(
-                io.StringIO(string), sep='\t', header=None,
-                names=self.__detected_cols, dtype=self.__detected_col_dtypes
-            )
+            ).astype(dtype=self.__fixed_col_dtypes)
             if into_ordereddict:
                 return df.iloc[0].to_dict(into=OrderedDict)
             else:

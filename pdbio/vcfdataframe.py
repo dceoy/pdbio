@@ -4,7 +4,6 @@ Pandas-based VCF Data Handler.
 https://github.com/dceoy/pdbio
 """
 
-import io
 import logging
 import re
 from collections import OrderedDict
@@ -56,9 +55,17 @@ class VcfDataFrame(BaseBioDataFrame):
         elif string.startswith('#CHROM'):
             items = string.strip().split('\t')
             self.__detected_cols = items
+            self.__logger.debug(
+                'self.__detected_cols: {}'.format(self.__detected_cols)
+            )
             self.__detected_col_dtypes = {
                 k: (self.__fixed_col_dtypes.get(k) or str) for k in items
             }
+            self.__logger.debug(
+                'self.__detected_col_dtypes: {}'.format(
+                    self.__detected_col_dtypes
+                )
+            )
             for i, c in enumerate(items[:len(self.__fixed_cols)]):
                 assert c == self.__fixed_cols[i], (
                     'invalid VCF column: {}'.format(c)
@@ -67,11 +74,10 @@ class VcfDataFrame(BaseBioDataFrame):
                 s for s in items
                 if s not in [*self.__fixed_cols, *self.__opt_cols]
             ]
-        else:
-            df = pd.read_csv(
-                io.StringIO(string), sep='\t', header=None,
-                names=self.__detected_cols, dtype=self.__detected_col_dtypes
-            )
+        elif string:
+            df = pd.DataFrame(
+                [string.strip().split('\t')], columns=self.__detected_cols
+            ).astype(dtype=self.__detected_col_dtypes)
             if into_ordereddict:
                 return df.iloc[0].to_dict(into=OrderedDict)
             else:

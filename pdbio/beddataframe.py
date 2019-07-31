@@ -4,7 +4,6 @@ Pandas-based BED Data Handler.
 https://github.com/dceoy/pdbio
 """
 
-import io
 import logging
 from collections import OrderedDict
 
@@ -45,19 +44,26 @@ class BedDataFrame(BaseBioDataFrame):
     def parse_line(self, string, into_ordereddict=False):
         if string.startswith(('browser', 'track')):
             self.header.append(string.strip())
-        else:
+        elif string:
             if not self.__detected_cols:
                 self.__detected_cols = [
                     *self.__fixed_cols, *self.__opt_cols
                 ][:(string.count('\t') + 1)]
+                self.__logger.debug(
+                    'self.__detected_cols: {}'.format(self.__detected_cols)
+                )
                 self.__detected_col_dtypes = {
                     k: (self.__fixed_col_dtypes.get(k) or str)
                     for k in self.__detected_cols
                 }
-            df = pd.read_csv(
-                io.StringIO(string), sep='\t', header=None,
-                names=self.__detected_cols, dtype=self.__detected_col_dtypes
-            )
+                self.__logger.debug(
+                    'self.__detected_col_dtypes: {}'.format(
+                        self.__detected_col_dtypes
+                    )
+                )
+            df = pd.DataFrame(
+                [string.strip().split('\t')], columns=self.__detected_cols
+            ).astype(dtype=self.__detected_col_dtypes)
             if into_ordereddict:
                 return df.iloc[0].to_dict(into=OrderedDict)
             else:

@@ -83,7 +83,7 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
                 d for d in [self.parse_line(string=s) for s in lines]
                 if isinstance(d, pd.DataFrame)
             ],
-            ignore_index=True
+            ignore_index=True, sort=False
         )
 
     @abstractmethod
