@@ -236,28 +236,23 @@ class SamDataFrame(BaseBioDataFrame):
 
 
 class BamFileWriter(object):
-    def __init__(self, out_bam_path, samtools, n_thread=1, kb_per_thread=None,
-                 sort=False, by_qname=False, executable='/bin/bash'):
+    def __init__(self, out_bam_path, samtools, n_thread=1):
         self.__logger = logging.getLogger(__name__)
         self.__bam_path = out_bam_path
         self.__logger.debug('Write STDIN into BAM: {}'.format(self.__bam_path))
-        args = (
-            '{samtools} view -bS -'
-            + (' | {samtools} sort -@ {t} -T {d} {mmpt} {n} -' if sort else '')
-            + ' -o {bam}'
-        ).format(
-            samtools=samtools, t=n_thread, d=os.path.dirname(self.__bam_path),
-            mmpt=('-m {}K'.format(kb_per_thread) if kb_per_thread else ''),
-            n=('-n' if by_qname else ''), bam=out_bam_path
-        )
-        self.__logger.debug('{0} <= `{1}`'.format(executable, args))
+        args = [
+            samtools, 'view', '-@', str(n_thread), '-bS', '-', '-o',
+            out_bam_path
+        ]
+        self.__logger.debug('STDIN => `{}`'.format(' '.join(args)))
         self.proc = subprocess.Popen(
             args=args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, shell=True, executable=executable
+            stderr=subprocess.PIPE
         )
 
     def write(self, *args, **kwargs):
         self.proc.stdin.write(*args, **kwargs)
+        self.proc.stdin.flush()
 
     def close(self):
         self.__logger.debug('Finish writing BAM: {}'.format(self.__bam_path))
