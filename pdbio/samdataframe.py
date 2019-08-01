@@ -74,7 +74,7 @@ class SamDataFrame(BaseBioDataFrame):
                 columns=[
                     *self.__fixed_cols,
                     *[
-                        s.split(':', maxsplit=1)[0]
+                        ':'.join(s.split(':', maxsplit=2)[:2])
                         for s in items[len(self.__fixed_cols):]
                     ]
                 ]
@@ -109,6 +109,28 @@ class SamDataFrame(BaseBioDataFrame):
                                r.dropna().astype(str).str.cat(sep='\t'),
                                axis=1):
             yield (s + os.linesep)
+
+    def tag_expanded_df(self, df=None, cast_numeric_tags=True, drop=True):
+        df_s = self.df if df is None else df
+        tag_cols = [c for c in df_s.columns if ':' in c]
+        return df_s.assign(
+            **{
+                ('_' + c): (
+                    lambda d: d[c].str.replace('^{}:'.format(c), '', n=1)
+                ) for c in tag_cols
+            }
+        ).pipe(
+            lambda d: (
+                d.astype({
+                    c: {'i': int, 'f': float}[c[-1]] for c in tag_cols
+                    if c.startswith('_') and c.endswith((':i', ':f'))
+                }) if cast_numeric_tags else d
+            )
+        ).rename(
+            columns={('_' + c): c[:-2] for c in tag_cols}
+        ).pipe(
+            lambda d: (d.drop(columns=tag_cols) if drop else d)
+        )
 
     def load_sam_by_region(self, rname, startpos, endpos,
                            completely_inclusion=True, options=None,
