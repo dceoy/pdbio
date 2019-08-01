@@ -165,6 +165,53 @@ class SamDataFrame(BaseBioDataFrame):
             for s in self.run_and_parse_subprocess(args=args)
         ]).astype(np.int32)
 
+    @staticmethod
+    def cigar2reflen(cigar):
+        """
+        Args:
+            cigar (str): CIGAR string of SAM
+
+        Returns:
+            int: length of a consumed reference bases
+
+        Examples:
+            >>> cigar2reflen(cigar='26S15M4D32M3I75M')
+            126
+        """
+        return np.array([
+            (s or '0')
+            for s in re.split('M|D|N|=|X', re.sub(r'[0-9]+[ISHP]', '', cigar))
+        ]).astype(np.int16).sum()
+
+    @staticmethod
+    def cigar2oplen(cigar, sum=True):
+        """
+        Args:
+            cigar (str): CIGAR string of SAM
+
+        Returns:
+            dict: total lengths of CIGAR operations
+
+        Examples:
+            >>> cigar2oplen(cigar='26S15M4D32M3I75M')
+            {'M': 122, 'I': 3, 'D': 4, 'N': 0, 'S': 26, 'H': 0, 'P': 0, '=': 0,
+             'X': 0}
+        """
+        ops = [
+            (k, np.int16(v)) for k, v in zip(
+                re.sub(r'[0-9]', '', cigar),
+                re.split('M|I|D|N|S|H|P|=|X', cigar)[:-1]
+            )
+        ]
+        if sum:
+            return (lambda o: {k: (o.get(k) or 0) for k in 'MIDNSHP=X'})(
+                o=pd.DataFrame(
+                    ops, columns=['op', 'len']
+                ).groupby('op')['len'].sum().to_dict()
+            )
+        else:
+            return ops
+
 
 class BamFileWriter(object):
     def __init__(self, out_bam_path, samtools, n_thread=1, kb_per_thread=None,
