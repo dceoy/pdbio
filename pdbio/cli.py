@@ -83,7 +83,7 @@ def _sort_by_chrom(src_path, dst_path=None, file_format='vcf'):
         biodf = SamDataFrame(path=src_path)
     else:
         raise ValueError('invalid file format: {}'.format(file_format))
-    biodf.sort().output_table(path=dst_path)
+    biodf.sort().write_table(path=dst_path)
 
 
 def _convert_file_to_csv(src_path, dst_path=None, sort=False, sep=',',
@@ -110,7 +110,7 @@ def _convert_file_to_csv(src_path, dst_path=None, sort=False, sep=',',
         sep=sep, index=False
     )
     if header_dst_path and biodf.header:
-        biodf.output_header(path=header_dst_path)
+        biodf.write_header(path=header_dst_path)
 
 
 def _set_log_config(debug=None, info=None):

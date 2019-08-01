@@ -6,6 +6,7 @@ https://github.com/dceoy/pdbio
 
 import logging
 import re
+import sys
 from collections import OrderedDict
 from itertools import chain
 from multiprocessing import cpu_count
@@ -92,6 +93,11 @@ class VcfDataFrame(BaseBioDataFrame):
         ]
         for s in self.run_and_parse_subprocess(args=args):
             yield s
+
+    def write_body(self, path=None, mode='a', **kwargs):
+        self.df.to_csv(
+            (path or sys.stdout), mode=mode, index=False, sep='\t', **kwargs
+        )
 
     def rename_samples_cols(self, prefix='SAMPLE_', sample_dict=None):
         self.__logger.info('Rename columns of samples')

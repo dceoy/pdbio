@@ -5,6 +5,7 @@ https://github.com/dceoy/pdbio
 """
 
 import logging
+import sys
 from collections import OrderedDict
 
 import pandas as pd
@@ -68,3 +69,8 @@ class BedDataFrame(BaseBioDataFrame):
                 return df.iloc[0].to_dict(into=OrderedDict)
             else:
                 return df
+
+    def write_body(self, path=None, mode='a', **kwargs):
+        self.df.to_csv(
+            (path or sys.stdout), mode=mode, index=False, sep='\t', **kwargs
+        )

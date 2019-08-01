@@ -99,7 +99,7 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         else:
             return open(path, mode='r')
 
-    def output_table(self, path=None, **kwargs):
+    def write_table(self, path=None, **kwargs):
         if path:
             abspath = self.normalize_path(path=path)
             self.__logger.info(
@@ -109,14 +109,10 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
             abspath = None
             self.__logger.info('Print {}'.format(self.__format_name))
         if self.header:
-            self.output_header(path=abspath)
-        self.df.to_csv(
-            (abspath or sys.stdout), mode=('a' if self.header else 'w'),
-            index=False, header=self.__column_header, sep=self.__delimiter,
-            **kwargs
-        )
+            self.write_header(path=abspath)
+        self.write_body(path=abspath, **kwargs)
 
-    def output_header(self, path=None):
+    def write_header(self, path=None):
         if path:
             with open(path, mode='w') as f:
                 for h in self.header:
@@ -124,6 +120,14 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
         else:
             for h in self.header:
                 print(h, flush=True)
+
+    @abstractmethod
+    def write_body(self, path=None, **kwargs):
+        self.df.to_csv(
+            (path or sys.stdout), mode=('a' if self.header else 'w'),
+            index=False, header=self.__column_header, sep=self.__delimiter,
+            **kwargs
+        )
 
     def sort(self, **kwargs):
         self.df = self._sort_df(**kwargs)

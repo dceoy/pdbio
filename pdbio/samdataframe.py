@@ -5,7 +5,9 @@ https://github.com/dceoy/pdbio
 """
 
 import logging
+import os
 import re
+import sys
 from collections import OrderedDict
 from multiprocessing import cpu_count
 
@@ -90,6 +92,22 @@ class SamDataFrame(BaseBioDataFrame):
         ]
         for s in self.run_and_parse_subprocess(args=args):
             yield s
+
+    def write_body(self, path=None, mode='a'):
+        if path:
+            with open(path, mode=mode) as f:
+                for s in self._generate_samline():
+                    f.write(s)
+        else:
+            for s in self._generate_samline():
+                sys.stdout.write(s)
+                sys.stdout.flush()
+
+    def _generate_samline(self):
+        for s in self.df.apply(lambda r:
+                               r.dropna().astype(str).str.cat(sep='\t'),
+                               axis=1):
+            yield (s + os.linesep)
 
     def load_sam_by_region(self, rname, startpos, endpos,
                            completely_inclusion=True, options=None,
