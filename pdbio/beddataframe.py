@@ -18,17 +18,15 @@ class BedDataFrame(BaseBioDataFrame):
 
     def __init__(self, path=None, opt_cols=None, load=True):
         self.__logger = logging.getLogger(__name__)
-        self.__fixed_cols = ['chrom', 'chromStart', 'chromEnd']
-        self.__opt_cols = opt_cols or [
-            'name', 'score', 'strand', 'thickStart', 'thickEnd', 'itemRgb',
-            'blockCount', 'blockSizes', 'blockStarts'
-        ]
-        self.__fixed_col_dtypes = {
-            'chrom': str, 'chromStart': int, 'chromEnd': int, 'name': str,
-            'score': int, 'strand': str, 'thickStart': int, 'thickEnd': int,
-            'itemRgb': str, 'blockCount': int, 'blockSizes': int,
-            'blockStarts': int
-        }
+        self.__fixed_col_dtypes = OrderedDict([
+            ('chrom', str), ('chromStart', int), ('chromEnd', int),
+            ('name', str), ('score', int), ('strand', str),
+            ('thickStart', int), ('thickEnd', int), ('itemRgb', str),
+            ('blockCount', int), ('blockSizes', int), ('blockStarts', int)
+        ])
+        cols = list(self.__fixed_col_dtypes.keys())
+        self.__fixed_cols = cols[:3]
+        self.__opt_cols = opt_cols or cols[3:]
         self.__detected_cols = list()
         self.__detected_col_dtypes = dict()
         super().__init__(

@@ -35,15 +35,14 @@ class SamDataFrame(BaseBioDataFrame):
         else:
             self.__region = None
         self.regions = [self.__region] if self.__region else None
-        self.__fixed_cols = [
-            'QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'RNEXT', 'PNEXT',
-            'TLEN', 'SEQ', 'QUAL'
-        ]
-        self.__fixed_col_dtypes = {
-            'QNAME': str, 'FLAG': int, 'RNAME': str, 'POS': int, 'MAPQ': int,
-            'CIGAR': str, 'RNEXT': str, 'PNEXT': int, 'TLEN': int, 'SEQ': str,
-            'QUAL': str
-        }
+        self.__fixed_col_dtypes = OrderedDict([
+            ('QNAME', str), ('FLAG', int), ('RNAME', str), ('POS', int),
+            ('MAPQ', int), ('CIGAR', str), ('RNEXT', str), ('PNEXT', int),
+            ('TLEN', int), ('SEQ', str), ('QUAL', str), ('OPT', str)
+        ])
+        cols = list(self.__fixed_col_dtypes.keys())
+        self.__fixed_cols = cols[:11]
+        self.__opt_cols = cols[11:]
         super().__init__(
             path=path, format_name='SAM', delimiter='\t', column_header=False,
             chrom_column='RNAME', pos_columns=['POS'],
@@ -68,16 +67,10 @@ class SamDataFrame(BaseBioDataFrame):
         if re.match(r'@[A-Z]{1}', string):
             self.header.append(string.strip())
         elif string.strip():
-            items = string.strip().split('\t')
+            items = string.strip().split('\t', maxsplit=11)
             df = pd.DataFrame(
                 [items],
-                columns=[
-                    *self.__fixed_cols,
-                    *[
-                        ':'.join(s.split(':', maxsplit=2)[:2])
-                        for s in items[len(self.__fixed_cols):]
-                    ]
-                ]
+                columns=[*self.__fixed_cols, *self.__opt_cols][:len(items)]
             ).astype(dtype=self.__fixed_col_dtypes)
             if into_ordereddict:
                 return df.iloc[0].to_dict(into=OrderedDict)
@@ -110,26 +103,26 @@ class SamDataFrame(BaseBioDataFrame):
                                axis=1):
             yield (s + os.linesep)
 
-    def tag_expanded_df(self, df=None, cast_numeric_tags=True, drop=True):
+    def tag_expanded_df(self, df=None, cast_numeric_types=True, drop=True):
         df_s = self.df if df is None else df
-        tag_cols = [c for c in df_s.columns if ':' in c]
-        return df_s.assign(
-            **{
-                ('_' + c): (
-                    lambda d: d[c].str.replace('^{}:'.format(c), '', n=1)
-                ) for c in tag_cols
-            }
-        ).pipe(
+        tag_types = {'i': int, 'f': float}
+        return pd.concat(
+            [
+                pd.DataFrame([('id', i), *[(s[:4], s[5:]) for s in v]])
+                for i, v in df_s['OPT'].str.split('\t').items()
+            ],
+            ignore_index=True
+        ).set_index('id').pipe(
             lambda d: (
-                d.astype({
-                    c: {'i': int, 'f': float}[c[-1]] for c in tag_cols
-                    if c.startswith('_') and c.endswith((':i', ':f'))
-                }) if cast_numeric_tags else d
+                d.astype(
+                    dtype={
+                        c[:4]: tag_types[c[3]] for c in d.columns
+                        if c[3] in tag_types
+                    }
+                ) if cast_numeric_types else d
             )
-        ).rename(
-            columns={('_' + c): c[:-2] for c in tag_cols}
-        ).pipe(
-            lambda d: (d.drop(columns=tag_cols) if drop else d)
+        ).pipe(lambda d: df_s.join(d, how='left')).pipe(
+            lambda d: (d.drop(columns='OPT') if drop else d)
         )
 
     def load_sam_by_region(self, rname, startpos, endpos,

@@ -23,14 +23,14 @@ class VcfDataFrame(BaseBioDataFrame):
         self.__logger = logging.getLogger(__name__)
         self.__bcftools = bcftools
         self.__n_thread = n_thread
-        self.__fixed_cols = [
-            '#CHROM', 'POS', 'ID', 'REF', 'ALT', 'QUAL', 'FILTER', 'INFO'
-        ]
-        self.__opt_cols = ['FORMAT']
-        self.__fixed_col_dtypes = {
-            '#CHROM': str, 'POS': int, 'ID': str, 'REF': str, 'ALT': str,
-            'QUAL': str, 'FILTER': str, 'INFO': str
-        }
+        self.__fixed_col_dtypes = OrderedDict([
+            ('#CHROM', str), ('POS', int), ('ID', str), ('REF', str),
+            ('ALT', str), ('QUAL', str), ('FILTER', str), ('INFO', str),
+            ('FORMAT', str)
+        ])
+        cols = list(self.__fixed_col_dtypes.keys())
+        self.__fixed_cols = cols[:8]
+        self.__opt_cols = cols[8:]
         self.__detected_cols = list()
         self.__detected_col_dtypes = dict()
         self.samples = list()
