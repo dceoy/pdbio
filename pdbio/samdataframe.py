@@ -35,14 +35,13 @@ class SamDataFrame(BaseBioDataFrame):
         else:
             self.__region = None
         self.regions = [self.__region] if self.__region else None
-        self.__fixed_col_dtypes = OrderedDict([
+        self.__col_dtypes = OrderedDict([
             ('QNAME', str), ('FLAG', int), ('RNAME', str), ('POS', int),
             ('MAPQ', int), ('CIGAR', str), ('RNEXT', str), ('PNEXT', int),
             ('TLEN', int), ('SEQ', str), ('QUAL', str), ('OPT', str)
         ])
-        cols = list(self.__fixed_col_dtypes.keys())
-        self.__fixed_cols = cols[:11]
-        self.__opt_cols = cols[11:]
+        self.__cols = list(self.__col_dtypes.keys())
+        self.__n_cols = len(self.__cols)
         super().__init__(
             path=path, format_name='SAM', delimiter='\t', column_header=False,
             chrom_column='RNAME', pos_columns=['POS'],
@@ -58,20 +57,17 @@ class SamDataFrame(BaseBioDataFrame):
         else:
             with self.open_readable_file(path=self.path) as f:
                 self.df = self.convert_lines_to_df(lines=list(f))
-        self.__logger.debug(
-            'self.df.columns: {}'.format(self.df.columns)
-        )
         return self
 
     def parse_line(self, string, into_ordereddict=False):
-        if re.match(r'@[A-Z]{1}', string):
+        if re.match(r'^@[A-Z]{1}', string):
             self.header.append(string.strip())
         elif string.strip():
-            items = string.strip().split('\t', maxsplit=11)
+            items = string.strip().split('\t', maxsplit=(self.__n_cols - 1))
             df = pd.DataFrame(
-                [items],
-                columns=[*self.__fixed_cols, *self.__opt_cols][:len(items)]
-            ).astype(dtype=self.__fixed_col_dtypes)
+                [[*items, ''] if len(items) < self.__n_cols else items],
+                columns=self.__cols
+            ).astype(dtype=self.__col_dtypes)
             if into_ordereddict:
                 return df.iloc[0].to_dict(into=OrderedDict)
             else:
@@ -101,24 +97,21 @@ class SamDataFrame(BaseBioDataFrame):
         for s in self.df.apply(lambda r:
                                r.dropna().astype(str).str.cat(sep='\t'),
                                axis=1):
-            yield (s + os.linesep)
+            yield (s.strip() + os.linesep)
 
     def tag_expanded_df(self, df=None, cast_numeric_types=True, drop=True):
         df_s = self.df if df is None else df
-        tag_types = {'i': int, 'f': float}
         return pd.concat(
             [
-                pd.DataFrame([('id', i), *[(s[:4], s[5:]) for s in v]])
-                for i, v in df_s['OPT'].str.split('\t').items()
+                pd.DataFrame([{
+                    'id': i, **({s[:4]: s[5:] for s in v} if v[0] else dict())
+                }]) for i, v in df_s['OPT'].str.split('\t').items()
             ],
-            ignore_index=True
+            ignore_index=True, sort=False
         ).set_index('id').pipe(
             lambda d: (
                 d.astype(
-                    dtype={
-                        c[:4]: tag_types[c[3]] for c in d.columns
-                        if c[3] in tag_types
-                    }
+                    dtype={c[:4]: float for c in d.columns if c[3] in 'if'}
                 ) if cast_numeric_types else d
             )
         ).pipe(lambda d: df_s.join(d, how='left')).pipe(
