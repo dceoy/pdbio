@@ -252,6 +252,27 @@ class SamDataFrame(BaseBioDataFrame):
                 break
         return tuple(seq_range)
 
+    @staticmethod
+    def md2edgelens(md):
+        """
+        Args:
+            md (str): MD tag value of SAM
+
+        Returns:
+            tuple: match lengths at left and right edges
+
+        Examples:
+            >>> md2edgelens(md='10A5^AC6')
+            (10, 6)
+        """
+        if re.match(r'^[0-9]+$', md):
+            return (np.int16(md), 0)
+        else:
+            match_lens = [
+                np.int16(s or 0) for s in re.split(r'[A-Z\^]', md)
+            ]
+            return (match_lens[0], match_lens[-1])
+
 
 class BamFileWriter(object):
     def __init__(self, out_bam_path, samtools, n_thread=1):
