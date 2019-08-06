@@ -220,6 +220,38 @@ class SamDataFrame(BaseBioDataFrame):
         else:
             return ops
 
+    @staticmethod
+    def cigar2alnrange(cigar):
+        """
+        Args:
+            cigar (str): CIGAR string of SAM
+
+        Returns:
+            tuple: aligned sequence range of read
+
+        Examples:
+            >>> cigar2alnrange(cigar='26S15M4D32M3I75M')
+            (26, 150)
+        """
+        ops = [
+            (k, np.int16(v)) for k, v in zip(
+                re.sub(r'[0-9]', '', cigar),
+                re.split('M|I|D|N|S|H|P|=|X', cigar)[:-1]
+            )
+        ]
+        seq_range = [0, sum([v for k, v in ops if k in 'MIS=X']) - 1]
+        for k, v in ops:
+            if k in 'ISHP':
+                seq_range[0] += v
+            else:
+                break
+        for k, v in reversed(ops):
+            if k in 'ISHP':
+                seq_range[1] -= v
+            else:
+                break
+        return tuple(seq_range)
+
 
 class BamFileWriter(object):
     def __init__(self, out_bam_path, samtools, n_thread=1):
