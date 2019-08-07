@@ -60,7 +60,7 @@ class SamDataFrame(BaseBioDataFrame):
         return self
 
     def parse_line(self, string, into_ordereddict=False):
-        if re.search(r'^@[A-Z]{1}', string):
+        if re.search(r'^@[A-Z]{2}', string):
             self.header.append(string.strip())
         elif string.strip():
             items = string.strip().split('\t', maxsplit=(self.__n_cols - 1))
@@ -99,13 +99,40 @@ class SamDataFrame(BaseBioDataFrame):
                                axis=1):
             yield (s.strip() + os.linesep)
 
-    def tag_expanded_df(self, df=None, cast_numeric_types=True, drop=True):
+    def tag_expanded_df(self, df=None, tag=None, cast_numeric_types=True,
+                        drop=True):
         df_s = self.df if df is None else df
+        if tag:
+            tag_strs = df_s['OPT'].str.split('\t').apply(
+                lambda t: ([s for s in t if s.startswith(tag)] or [np.nan])[0]
+            )
+            if tag_strs.isnull().all():
+                raise RuntimeError('tag not found: {}'.format(tag))
+            else:
+                tag_col = tag_strs.dropna().iloc[0][:4]
+                tag_vals = tag_strs.str.split(':', n=2).apply(
+                    lambda t: (t[2] if t else t)
+                )
+                return df_s.assign(
+                    **{
+                        tag_col: (
+                            tag_vals.astype(float) if tag_col[3] in 'if'
+                            else tag_vals
+                        )
+                    }
+                )
+        else:
+            return self._all_tagged_df(
+                df=df_s, cast_numeric_types=cast_numeric_types, drop=drop
+            )
+
+    @staticmethod
+    def _all_tagged_df(df, cast_numeric_types=True, drop=True):
         return pd.concat(
             [
                 pd.DataFrame([{
                     'id': i, **({s[:4]: s[5:] for s in v} if v[0] else dict())
-                }]) for i, v in df_s['OPT'].str.split('\t').items()
+                }]) for i, v in df['OPT'].str.split('\t').items()
             ],
             ignore_index=True, sort=False
         ).set_index('id').pipe(
@@ -114,7 +141,7 @@ class SamDataFrame(BaseBioDataFrame):
                     dtype={c[:4]: float for c in d.columns if c[3] in 'if'}
                 ) if cast_numeric_types else d
             )
-        ).pipe(lambda d: df_s.join(d, how='left')).pipe(
+        ).pipe(lambda d: df.join(d, how='left')).pipe(
             lambda d: (d.drop(columns='OPT') if drop else d)
         )
 
@@ -279,7 +306,7 @@ class SamDataFrame(BaseBioDataFrame):
             only_aligned (bool): cut unmapped characters on edges
 
         Returns:
-            int: length of a consumed reference bases
+            str: CIGAR character sequence
 
         Examples:
             >>> cigar2reflen(cigar='6S5M4D12M3I5M')
@@ -297,25 +324,54 @@ class SamDataFrame(BaseBioDataFrame):
             return chars
 
     @staticmethod
-    def md2edgelens(md):
+    def cigar2matchchars(cigar, md):
         """
         Args:
+            cigar (str): CIGAR string of SAM
             md (str): MD tag value of SAM
 
         Returns:
-            tuple: match lengths at left and right edges
+            str: CIGAR character sequence
+                (match: '=', unmatch: 'X', deletion: 'D')
 
         Examples:
-            >>> md2edgelens(md='10A5^AC6')
-            (10, 6)
+            >>> cigar2matchchars(cigar='11M1D16M', md='5C5^T16')
+            '=====X=====D================'
         """
-        if re.search(r'^[0-9]+$', md):
-            return (np.int16(md), 0)
-        else:
-            match_lens = [
-                np.int16(s or 0) for s in re.split(r'[A-Z\^]', md)
-            ]
-            return (match_lens[0], match_lens[-1])
+        aln_cigar_list = list(
+            re.sub(
+                r'^[ISHP]+', '',
+                re.sub(
+                    r'[ISHP]+$', '',
+                    ''.join([
+                        (k * int(v)) for k, v in zip(
+                            re.sub(r'[0-9]', '', cigar),
+                            re.split('M|I|D|N|S|H|P|=|X', cigar)[:-1]
+                        )
+                    ])
+                )
+            )
+        )
+        not_match_md = [
+            (('D' * len(s[1:])) if s.startswith('^') else ('X' if s else s))
+            for s in re.split(r'[0-9]+', md)
+        ]
+        n_not_match_md = len(not_match_md)
+        match_md = [
+            ('=' * int(s)) for s in re.split(r'[\^A-Z]', md) if s
+        ]
+        if n_not_match_md > len(match_md):
+            match_md.append('')
+        assert n_not_match_md == len(match_md)
+        md_cigars = ''.join([(u + m) for m, u in zip(match_md, not_match_md)])
+        ri = 0
+        for i, c in enumerate(aln_cigar_list):
+            if c == 'M':
+                aln_cigar_list[i] = md_cigars[ri]
+                ri += 1
+            elif c in 'DN=X':
+                ri += 1
+        return ''.join(aln_cigar_list)
 
 
 class BamFileWriter(object):
