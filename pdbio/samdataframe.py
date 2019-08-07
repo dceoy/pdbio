@@ -323,8 +323,9 @@ class BamFileWriter(object):
         self.__logger = logging.getLogger(__name__)
         self.__bam_path = out_bam_path
         self.__logger.debug('Write STDIN into BAM: {}'.format(self.__bam_path))
+        self.__samtools = samtools
         args = [
-            samtools, 'view', '-@', str(n_thread), '-bS', '-', '-o',
+            self.__samtools, 'view', '-@', str(n_thread), '-bS', '-', '-o',
             out_bam_path
         ]
         self.__logger.debug('STDIN => `{}`'.format(' '.join(args)))
@@ -341,7 +342,9 @@ class BamFileWriter(object):
         self.__logger.debug('Finish writing BAM: {}'.format(self.__bam_path))
         self.proc.stdin.close()
         self.proc.wait()
-        if self.proc.returncode != 0:
+        if self.proc.returncode == 0:
+            subprocess.run([self.__samtools, 'quickcheck', self.__bam_path])
+        else:
             self.__logger.error(
                 'STDERR from subprocess `{0}`:{1}{2}'.format(
                     self.proc.args, os.linesep,
