@@ -60,7 +60,7 @@ class SamDataFrame(BaseBioDataFrame):
         return self
 
     def parse_line(self, string, into_ordereddict=False):
-        if re.match(r'^@[A-Z]{1}', string):
+        if re.search(r'^@[A-Z]{1}', string):
             self.header.append(string.strip())
         elif string.strip():
             items = string.strip().split('\t', maxsplit=(self.__n_cols - 1))
@@ -192,6 +192,24 @@ class SamDataFrame(BaseBioDataFrame):
         ]).astype(np.int16).sum()
 
     @staticmethod
+    def cigar2qlen(cigar):
+        """
+        Args:
+            cigar (str): CIGAR string of SAM
+
+        Returns:
+            int: length of a consumed query bases
+
+        Examples:
+            >>> cigar2reflen(cigar='26S15M4D32M3I75M')
+            151
+        """
+        return np.array([
+            (s or '0')
+            for s in re.split('M|I|S|=|X', re.sub(r'[0-9]+[DNHP]', '', cigar))
+        ]).astype(np.int16).sum()
+
+    @staticmethod
     def cigar2oplen(cigar, sum=True):
         """
         Args:
@@ -291,7 +309,7 @@ class SamDataFrame(BaseBioDataFrame):
             >>> md2edgelens(md='10A5^AC6')
             (10, 6)
         """
-        if re.match(r'^[0-9]+$', md):
+        if re.search(r'^[0-9]+$', md):
             return (np.int16(md), 0)
         else:
             match_lens = [
