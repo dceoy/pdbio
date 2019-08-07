@@ -196,6 +196,7 @@ class SamDataFrame(BaseBioDataFrame):
         """
         Args:
             cigar (str): CIGAR string of SAM
+            sum (bool): sum lengths by character
 
         Returns:
             dict: total lengths of CIGAR operations
@@ -251,6 +252,31 @@ class SamDataFrame(BaseBioDataFrame):
             else:
                 break
         return tuple(seq_range)
+
+    @staticmethod
+    def cigar2chars(cigar, only_aligned=False):
+        """
+        Args:
+            cigar (str): CIGAR string of SAM
+            only_aligned (bool): cut unmapped characters on edges
+
+        Returns:
+            int: length of a consumed reference bases
+
+        Examples:
+            >>> cigar2reflen(cigar='6S5M4D12M3I5M')
+            'SSSSSSMMMMMDDDDMMMMMMMMMMMMIIIMMMMM'
+        """
+        chars = ''.join([
+            (k * int(v)) for k, v in zip(
+                re.sub(r'[0-9]', '', cigar),
+                re.split('M|I|D|N|S|H|P|=|X', cigar)[:-1]
+            )
+        ])
+        if only_aligned:
+            return re.sub(r'^[ISHP]+', '', re.sub(r'[ISHP]+$', '', chars))
+        else:
+            return chars
 
     @staticmethod
     def md2edgelens(md):
