@@ -177,11 +177,10 @@ class SamDataFrame(BaseBioDataFrame):
         return self
 
     def median_depth(self, region=None, min_baseq=None, min_mapq=None):
-        return np.median(
-            self._depth_array(
-                region=region, min_baseq=min_baseq, min_mapq=min_mapq
-            )
+        depths = self._depth_array(
+            region=region, min_baseq=min_baseq, min_mapq=min_mapq
         )
+        return (np.median(depths) if depths.size else 0)
 
     def describe_depth(self, region=None, min_baseq=None, min_mapq=None):
         return self._depth_array(
