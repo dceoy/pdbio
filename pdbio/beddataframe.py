@@ -70,5 +70,6 @@ class BedDataFrame(BaseBioDataFrame):
 
     def write_body(self, path=None, mode='a', **kwargs):
         self.df.to_csv(
-            (path or sys.stdout), mode=mode, index=False, sep='\t', **kwargs
+            (path or sys.stdout), mode=mode, index=False, header=False,
+            sep='\t', **kwargs
         )
