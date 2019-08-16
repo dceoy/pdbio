@@ -12,6 +12,7 @@ Usage:
     pdbio vcfsort [--debug|--info] <src> [<dst>]
     pdbio bedsort [--debug|--info] <src> [<dst>]
     pdbio samsort [--debug|--info] <src> [<dst>]
+    pdbio idvars [--debug|--info] <fa> <chrom> <variant>...
     pdbio --version
     pdbio -h|--help
 
@@ -32,10 +33,14 @@ Commands:
     vcfsort             Sort a VCF/BCF file
     bedsort             Sort a BED file
     samsort             Sort a SAM/BAM/CRAM file
+    idvars              Identify if variants are identical
 
 Arguments:
     <src>               Path to an input file
     <dst>               Path to an output file
+    <fa>                Path to a reference genome FASTA file
+    <chrom>             Chromosome name (e.g., chr8)
+    <variant>           Variant expression (e.g., 32529588:C_CGG)
 """
 
 import logging
@@ -47,6 +52,7 @@ from docopt import docopt
 
 from . import __version__
 from .beddataframe import BedDataFrame
+from .identifier import identify_variants
 from .samdataframe import SamDataFrame
 from .vcfdataframe import VcfDataFrame
 
@@ -58,7 +64,12 @@ def main():
     logger.debug('args:{0}{1}'.format(os.linesep, args))
     csv_convert = [k for k in ['vcf', 'bed', 'sam'] if args[k + '2csv']]
     chrom_sort = [k for k in ['vcf', 'bed', 'sam'] if args[k + 'sort']]
-    if csv_convert:
+    if args['idvars']:
+        identify_variants(
+            fa_path=args['<fa>'], chrom=args['<chrom>'],
+            variants=args['<variant>']
+        )
+    elif csv_convert:
         _convert_file_to_csv(
             src_path=args['<src>'], dst_path=args['<dst>'],
             sort=args['--sort'], sep=('\t' if args['--tsv'] else ','),
