@@ -50,7 +50,6 @@ def cigar2oplen(cigar):
     """
     Args:
         cigar (str): CIGAR string of SAM
-        sum (bool): sum lengths by character
 
     Returns:
         dict: total lengths of CIGAR operations
