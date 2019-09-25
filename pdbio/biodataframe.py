@@ -78,13 +78,14 @@ class BaseBioDataFrame(object, metaclass=ABCMeta):
     def convert_lines_to_df(self, lines, update_header=True):
         if update_header:
             self.header = list()
-        return pd.concat(
-            [
-                d for d in [self.parse_line(string=s) for s in lines]
-                if isinstance(d, pd.DataFrame)
-            ],
-            ignore_index=True, sort=False
-        )
+        line_dfs = [
+            d for d in [self.parse_line(string=s) for s in lines]
+            if isinstance(d, pd.DataFrame)
+        ]
+        if line_dfs:
+            return pd.concat(line_dfs, ignore_index=True, sort=False)
+        else:
+            return pd.DataFrame()
 
     @abstractmethod
     def parse_line(self, string, into_ordereddict=False):
