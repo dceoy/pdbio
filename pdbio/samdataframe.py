@@ -56,6 +56,8 @@ class SamDataFrame(BaseBioDataFrame):
         else:
             with self.open_readable_file(path=self.path) as f:
                 self.df = self.convert_lines_to_df(lines=list(f))
+        if not self.df.shape[0]:
+            self.df = pd.DataFrame(columns=self.__cols)
         return self
 
     def parse_line(self, string, into_ordereddict=False):
