@@ -9,7 +9,7 @@ Installation
 ------------
 
 ```sh
-$ pip install -U https://github.com/dceoy/pdbio/archive/master.tar.gz
+$ pip install -U pdbio
 ```
 
 Python API
