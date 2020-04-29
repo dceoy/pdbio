@@ -7,13 +7,13 @@ test:
     - script:
         name: Install pdbio
         code: |
-          pip install -U .
+          python3 -m pip install -U .
     - script:
         name: Validate the codes using flake8
         code: |
-          find . -name '*.py' | xargs flake8 --no-isort-config
+          find . -name '*.py' | xargs flake8
     - script:
-        name: Test a command
+        name: Test commands
         code: |
           set -x
           pdbio --version
@@ -28,6 +28,20 @@ test:
           pdbio sam2csv test/example.sam
           pdbio samsort test/example.sam /tmp/example.sorted.sam
           cat /tmp/example.sorted.sam
+    - script:
+        name: Test a class
+        code: |
+          cat << EOF | python3
+          from pprint import pprint
+          from pdbio.vcfdataframe import VcfDataFrame
+          vcf_path = 'test/example.vcf'
+          vcfdf = VcfDataFrame(path=vcf_path)
+          pprint(vcfdf.header)
+          pprint(vcfdf.samples)
+          print(vcfdf.df)
+          vcfdf.sort()
+          print(vcfdf.df)
+          EOF
   after-steps:
     - slack-notifier:
         url: $SLACK_URL
