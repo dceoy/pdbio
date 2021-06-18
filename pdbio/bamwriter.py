@@ -34,7 +34,9 @@ class BamFileWriter(object):
         self.proc.stdin.close()
         self.proc.wait()
         if self.proc.returncode == 0:
-            subprocess.run([self.__samtools, 'quickcheck', self.__bam_path])
+            subprocess.run(
+                [self.__samtools, 'quickcheck', self.__bam_path], check=True
+            )
         else:
             self.__logger.error(
                 'STDERR from subprocess `{0}`:{1}{2}'.format(

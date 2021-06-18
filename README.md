@@ -3,8 +3,9 @@ pdbio
 
 Pandas-based Data Handler for VCF, BED, and SAM Files
 
-[![wercker status](https://app.wercker.com/status/fe5472a8f890edd3169e7bae5b648bac/s/master "wercker status")](https://app.wercker.com/project/byKey/fe5472a8f890edd3169e7bae5b648bac)
-![Upload Python Package](https://github.com/dceoy/pdbio/workflows/Upload%20Python%20Package/badge.svg)
+[![Test](https://github.com/dceoy/pdbio/actions/workflows/test.yml/badge.svg)](https://github.com/dceoy/pdbio/actions/workflows/test.yml)
+[![Upload Python Package](https://github.com/dceoy/pdbio/actions/workflows/python-publish.yml/badge.svg)](https://github.com/dceoy/pdbio/actions/workflows/python-publish.yml)
+[![CI to Docker Hub](https://github.com/dceoy/pdbio/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/dceoy/pdbio/actions/workflows/docker-publish.yml)
 
 Installation
 ------------

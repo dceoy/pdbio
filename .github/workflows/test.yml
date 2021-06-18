@@ -1,20 +1,40 @@
 ---
-box:
-  id: dceoy/jupyter:latest
-  entrypoint: /bin/bash -c
-test:
-  steps:
-    - script:
-        name: Install pdbio
-        code: |
-          python3 -m pip install -U .
-    - script:
-        name: Validate the codes using flake8
-        code: |
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test_installation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install oanda-cli
+        run: |
+          pip install -U \
+            autopep8 flake8 flake8-bugbear flake8-isort pep8-naming .
+      - name: Validate the codes using flake8
+        run: |
           find . -name '*.py' | xargs flake8
-    - script:
-        name: Test commands
-        code: |
+
+      - name: Test commands
+        run: |
+          oanda-cli --version
+          oanda-cli --help
+          oanda-cli init --debug
+
+      - name: Test commands
+        run: |
           set -x
           pdbio --version
           pdbio vcf2csv --sort --tsv test/example.vcf
@@ -28,9 +48,9 @@ test:
           pdbio sam2csv test/example.sam
           pdbio samsort test/example.sam /tmp/example.sorted.sam
           cat /tmp/example.sorted.sam
-    - script:
-        name: Test a class
-        code: |
+
+      - name: Test a class
+        run: |
           cat << EOF | python3
           from pprint import pprint
           from pdbio.vcfdataframe import VcfDataFrame
@@ -42,7 +62,3 @@ test:
           vcfdf.sort()
           print(vcfdf.df)
           EOF
-  after-steps:
-    - slack-notifier:
-        url: $SLACK_URL
-        channel: $SLACK_CHANNEL
