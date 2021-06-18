@@ -18,21 +18,13 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: '3.x'
-
-      - name: Install oanda-cli
+      - name: Install packages
         run: |
           pip install -U \
             autopep8 flake8 flake8-bugbear flake8-isort pep8-naming .
       - name: Validate the codes using flake8
         run: |
           find . -name '*.py' | xargs flake8
-
-      - name: Test commands
-        run: |
-          oanda-cli --version
-          oanda-cli --help
-          oanda-cli init --debug
-
       - name: Test commands
         run: |
           set -x
@@ -48,7 +40,6 @@ jobs:
           pdbio sam2csv test/example.sam
           pdbio samsort test/example.sam /tmp/example.sorted.sam
           cat /tmp/example.sorted.sam
-
       - name: Test a class
         run: |
           cat << EOF | python3
