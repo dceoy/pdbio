@@ -60,7 +60,7 @@ def cigar2oplen(cigar):
     """
     return pd.DataFrame(
         [
-            (k, np.int16(v)) for k, v in zip(
+            (k, int(v)) for k, v in zip(
                 re.sub(r'[0-9]', '', cigar),
                 re.split('M|I|D|N|S|H|P|=|X', cigar)[:-1]
             )
@@ -69,39 +69,7 @@ def cigar2oplen(cigar):
     ).groupby('op')['len'].sum().to_dict()
 
 
-def cigar2alnrange(cigar):
-    """
-    Args:
-        cigar (str): CIGAR string of SAM
-
-    Returns:
-        tuple: aligned sequence range of read
-
-    Examples:
-        >>> cigar2alnrange(cigar='26S15M4D32M3I75M')
-        (26, 150)
-    """
-    ops = [
-        (k, np.int16(v)) for k, v in zip(
-            re.sub(r'[0-9]', '', cigar),
-            re.split('M|I|D|N|S|H|P|=|X', cigar)[:-1]
-        )
-    ]
-    seq_range = [0, sum([v for k, v in ops if k in 'MIS=X']) - 1]
-    for k, v in ops:
-        if k in 'ISHP':
-            seq_range[0] += v
-        else:
-            break
-    for k, v in reversed(ops):
-        if k in 'ISHP':
-            seq_range[1] -= v
-        else:
-            break
-    return tuple(seq_range)
-
-
-def cigar2chars(cigar, only_aligned=False):
+def cigar2chrs(cigar, only_aligned=False):
     """
     Args:
         cigar (str): CIGAR string of SAM
@@ -111,69 +79,115 @@ def cigar2chars(cigar, only_aligned=False):
         str: CIGAR character sequence
 
     Examples:
-        >>> cigar2chars(cigar='6S5M4D12M3I5M')
+        >>> cigar2chrs(cigar='6S5M4D12M3I5M')
         'SSSSSSMMMMMDDDDMMMMMMMMMMMMIIIMMMMM'
+        >>> cigar2chrs(cigar='6S5M4D12M3I5M', only_aligned=True)
+        'MMMMMDDDDMMMMMMMMMMMMIIIMMMMM'
     """
-    chars = ''.join([
+    chrs = ''.join([
         (k * int(v)) for k, v in zip(
             re.sub(r'[0-9]', '', cigar),
             re.split('M|I|D|N|S|H|P|=|X', cigar)[:-1]
         )
     ])
     if only_aligned:
-        return re.sub(r'^[ISHP]+', '', re.sub(r'[ISHP]+$', '', chars))
+        return re.sub(r'^[ISHP]+', '', re.sub(r'[ISHP]+$', '', chrs))
     else:
-        return chars
+        return chrs
 
 
-def cigar2matchchars(cigar, md):
+def md2chrs(md):
     """
     Args:
-        cigar (str): CIGAR string of SAM
         md (str): MD tag value of SAM
 
     Returns:
-        str: CIGAR character sequence
-            (match: '=', unmatch: 'X', deletion: 'D')
+        str: MD character sequence
+            (matched: '=', unmatched: 'X', deleted: 'D')
 
     Examples:
-        >>> cigar2matchchars(cigar='11M1D16M', md='5C5^T16')
+        >>> md2chrs(md='5C5^T16')
         '=====X=====D================'
+        >>> md2chrs(md='16^AGTTTCA33')
+        '================DDDDDDD================================='
+        >>> md2chrs(md='7A0A30C9')
+        '=======XX==============================X========='
     """
-    aln_cigar_list = list(
-        re.sub(
-            r'^[ISHP]+', '',
-            re.sub(
-                r'[ISHP]+$', '',
-                ''.join([
-                    (k * int(v)) for k, v in zip(
-                        re.sub(r'[0-9]', '', cigar),
-                        re.split('M|I|D|N|S|H|P|=|X', cigar)[:-1]
-                    )
-                ])
-            )
-        )
-    )
     not_match_md = [
         (('D' * len(s[1:])) if s.startswith('^') else ('X' if s else s))
         for s in re.split(r'[0-9]+', md)
     ]
     n_not_match_md = len(not_match_md)
     match_md = [
-        ('=' * int(s)) for s in re.split(r'[\^A-Z]', md) if s
+        ('=' * int(s)) for s in re.split(r'[\^A-Z]+', md) if s
     ]
     if n_not_match_md > len(match_md):
         match_md.append('')
     assert n_not_match_md == len(match_md)
-    md_cigars = ''.join([(u + m) for m, u in zip(match_md, not_match_md)])
-    ri = 0
-    for i, c in enumerate(aln_cigar_list):
+    return ''.join([(u + m) for m, u in zip(match_md, not_match_md)])
+
+
+def cigar2matchchrs(cigar, md):
+    """
+    Args:
+        cigar (str): CIGAR string of SAM
+        md (str): MD tag value of SAM
+
+    Returns:
+        str: CIGAR+MD character sequence
+            (matched: '=', unmatched: 'X', deleted: 'D', inserted: 'I')
+
+    Examples:
+        >>> cigar2matchchrs(cigar='11M1D16M', md='5C5^T16')
+        '=====X=====D================'
+        >>> cigar2matchchrs(cigar='13M1I3M7D33M', md='16^AGTTTCA33')
+        '=============I===DDDDDDD================================='
+        >>> cigar2matchchrs(cigar='49M', md='7A0A30C9')
+        '=======XX==============================X========='
+    """
+    md_chrs = md2chrs(md=md)
+    md_i = 0
+    aligned_cigar_list = list(cigar2chrs(cigar=cigar, only_aligned=True))
+    for i, c in enumerate(aligned_cigar_list):
         if c == 'M':
-            aln_cigar_list[i] = md_cigars[ri]
-            ri += 1
-        elif c in 'DN=X':
-            ri += 1
-    return ''.join(aln_cigar_list)
+            aligned_cigar_list[i] = md_chrs[md_i]
+            md_i += 1
+        elif c in 'D=X':
+            md_i += 1
+    return ''.join(aligned_cigar_list)
+
+
+def seq2alignseq(seq, cigar):
+    """
+    Args:
+        seq (str): SEQ string of SAM
+        cigar (str): CIGAR string of SAM
+
+    Returns:
+        tuple: aligned query sequence range
+
+    Examples:
+        >>> seq2alignseq(seq='TACAGCAGACGGGACCTTTTTGGTA', cigar='3S20M2S')
+        'AGCAGACGGGACCTTTTTGG'
+    """
+    ops = [
+        (k, int(v)) for k, v in zip(
+            re.sub(r'[0-9]', '', cigar),
+            re.split('M|I|D|N|S|H|P|=|X', cigar)[:-1]
+        )
+    ]
+    aligned_seq = seq
+    for k, v in ops:
+        if k in 'ISHP':
+            aligned_seq = aligned_seq[v:]
+        else:
+            break
+    for k, v in reversed(ops):
+        if k in 'ISHP':
+            aligned_seq = aligned_seq[:-v]
+        else:
+            break
+    return aligned_seq
 
 
 if __name__ == '__main__':
