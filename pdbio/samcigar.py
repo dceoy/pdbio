@@ -164,7 +164,7 @@ def seq2alignseq(seq, cigar):
         cigar (str): CIGAR string of SAM
 
     Returns:
-        tuple: aligned query sequence range
+        str: aligned query sequence
 
     Examples:
         >>> seq2alignseq(seq='TACAGCAGACGGGACCTTTTTGGTA', cigar='3S20M2S')
